@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#38A169"/>
-  <!-- Handle -->
-  <rect x="27" y="6" width="10" height="28" rx="5" fill="#F6E05E"/>
-  <!-- Bristle base -->
-  <rect x="18" y="32" width="28" height="7" rx="3" fill="#ECC94B"/>
-  <!-- Bristles -->
-  <rect x="20" y="39" width="5" height="16" rx="2.5" fill="white" opacity="0.85"/>
-  <rect x="29.5" y="39" width="5" height="16" rx="2.5" fill="white" opacity="0.85"/>
-  <rect x="39" y="39" width="5" height="16" rx="2.5" fill="white" opacity="0.85"/>
-  <rect x="25" y="39" width="4" height="13" rx="2" fill="white" opacity="0.55"/>
-  <rect x="35" y="39" width="4" height="13" rx="2" fill="white" opacity="0.55"/>
+  <rect width="64" height="64" rx="12" fill="#2D3748"/>
+  <!-- Angled broom - handle top-right to center -->
+  <line x1="50" y1="6" x2="28" y2="28" stroke="#F6AD55" stroke-width="6" stroke-linecap="round"/>
+  <!-- Bristle collar -->
+  <ellipse cx="26" cy="30" rx="8" ry="4" fill="#ED8936" transform="rotate(-45 26 30)"/>
+  <!-- Bristles fanning out bottom-left -->
+  <line x1="26" y1="30" x2="8" y2="48" stroke="#FBD38D" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <line x1="26" y1="30" x2="12" y2="54" stroke="#FBD38D" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="26" y1="30" x2="20" y2="55" stroke="#FBD38D" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <line x1="26" y1="30" x2="5" y2="42" stroke="#FBD38D" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <line x1="26" y1="30" x2="28" y2="52" stroke="#FBD38D" stroke-width="3" stroke-linecap="round" opacity="0.45"/>
 </svg>
