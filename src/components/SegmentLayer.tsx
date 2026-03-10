@@ -68,10 +68,17 @@ export default function SegmentLayer() {
     }
   }, [segments, map]);
 
-  // Update colors based on SODA sweep data + user selection
+  // Update colors based on SODA sweep data + real-time sweepinfo + user selection
+  const sweepVisitTime = useSweepStore((s) => s.sweepVisitTime);
+
   useEffect(() => {
     const now = Date.now();
     const frontierCutoff = now - FRONTIER_WINDOW_MS;
+
+    // Check if user's block was swept today (from real-time sweepinfo API)
+    const userSweptToday = sweepVisitTime
+      ? sweepVisitTime.toDateString() === new Date().toDateString()
+      : false;
 
     for (const [id, polylines] of polylineMapRef.current) {
       let color: string = COLORS.notYet;
@@ -92,7 +99,8 @@ export default function SegmentLayer() {
       }
 
       if (id === userPhysicalId) {
-        color = COLORS.userBlock;
+        // Color green if swept today (from real-time data), otherwise blue
+        color = userSweptToday ? COLORS.swept : COLORS.userBlock;
         weight = COLORS.userBlockWeight;
         opacity = 1;
       }
@@ -101,7 +109,7 @@ export default function SegmentLayer() {
         pl.setStyle({ color, weight, opacity });
       }
     }
-  }, [sweepRecords, userPhysicalId, segments]);
+  }, [sweepRecords, userPhysicalId, sweepVisitTime, segments]);
 
   // Hide/show on zoom
   useEffect(() => {
