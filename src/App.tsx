@@ -13,6 +13,7 @@ import { useEta } from './hooks/useEta';
 import { useUserBlock } from './hooks/useUserBlock';
 import { useSweepStore } from './store';
 import { useRestoreBlock } from './hooks/useRestoreBlock';
+import { Analytics } from '@vercel/analytics/react';
 
 function DesktopSidebar() {
   const { selectFromGeocode } = useUserBlock();
@@ -190,5 +191,10 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <>
+      <AppContent />
+      <Analytics />
+    </>
+  );
 }
