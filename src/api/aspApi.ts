@@ -1,5 +1,5 @@
 import { ASP_API } from '../utils/constants';
-import { sodaFetch } from './sodaClient';
+import { sodaFetch, escapeSoql } from './sodaClient';
 import type { AspSign } from '../types/asp';
 
 /** Convert CSCL abbreviations to ASP format for LIKE matching.
@@ -20,17 +20,20 @@ export async function fetchAspSigns(
   onStreet: string,
   borough: string
 ): Promise<AspSign[]> {
+  const street = escapeSoql(onStreet.toUpperCase());
+  const boro = escapeSoql(borough.toUpperCase());
+
   // Try exact match first
   const exact = await sodaFetch<AspSign[]>(ASP_API, {
-    $where: `upper(on_street)='${onStreet.toUpperCase()}' AND upper(borough)='${borough.toUpperCase()}'`,
+    $where: `upper(on_street)='${street}' AND upper(borough)='${boro}'`,
     $limit: '50',
   });
   if (exact.length > 0) return exact;
 
   // Fall back to LIKE pattern (handles CSCL→ASP format differences)
-  const pattern = toAspLikePattern(onStreet);
+  const pattern = escapeSoql(toAspLikePattern(onStreet));
   return sodaFetch<AspSign[]>(ASP_API, {
-    $where: `upper(on_street) like '${pattern}' AND upper(borough)='${borough.toUpperCase()}'`,
+    $where: `upper(on_street) like '${pattern}' AND upper(borough)='${boro}'`,
     $limit: '50',
   });
 }
@@ -41,9 +44,14 @@ export async function fetchAspSignsByStreetAndCrossStreets(
   toStreet: string,
   borough: string
 ): Promise<AspSign[]> {
+  const street = escapeSoql(onStreet.toUpperCase());
+  const from = escapeSoql(fromStreet.toUpperCase());
+  const to = escapeSoql(toStreet.toUpperCase());
+  const boro = escapeSoql(borough.toUpperCase());
+
   // Try exact match first, fall back to just street + borough
   const exact = await sodaFetch<AspSign[]>(ASP_API, {
-    $where: `upper(on_street)='${onStreet.toUpperCase()}' AND upper(from_street)='${fromStreet.toUpperCase()}' AND upper(to_street)='${toStreet.toUpperCase()}' AND upper(borough)='${borough.toUpperCase()}'`,
+    $where: `upper(on_street)='${street}' AND upper(from_street)='${from}' AND upper(to_street)='${to}' AND upper(borough)='${boro}'`,
     $limit: '20',
   });
 

@@ -3,6 +3,11 @@ import { SODA_APP_TOKEN } from '../utils/constants';
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 2000;
 
+/** Escape a string value for use inside SoQL single-quoted literals */
+export function escapeSoql(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 export async function sodaFetch<T>(url: string, params?: Record<string, string>): Promise<T> {
   const u = new URL(url);
   if (params) {

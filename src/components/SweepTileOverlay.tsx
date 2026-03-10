@@ -2,9 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useSweepStore } from '../store';
-import { fetchActive } from '../api/mappingApi';
+import { fetchActive, getSweepTileUrl } from '../api/mappingApi';
 
-const TILE_URL_BASE = 'https://sweepnyc.nyc.gov/mappingapi/api/highlight';
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function SweepTileOverlay() {
@@ -46,7 +45,7 @@ export default function SweepTileOverlay() {
         tileLayerRef.current.removeFrom(map);
       }
 
-      const url = `${TILE_URL_BASE}?layerName=VISITED&z={z}&x={x}&y={y}&t=${tileCacheTime}`;
+      const url = getSweepTileUrl(tileCacheTime);
       tileLayerRef.current = L.tileLayer(url, {
         minZoom: 13,
         maxZoom: 18,

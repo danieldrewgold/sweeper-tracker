@@ -1,5 +1,5 @@
 import { CSCL_API } from '../utils/constants';
-import { sodaFetch } from './sodaClient';
+import { sodaFetch, escapeSoql } from './sodaClient';
 import type { CsclSegment } from '../types/cscl';
 
 export async function fetchSegmentsInRadius(
@@ -24,7 +24,7 @@ export async function fetchSegmentById(physicalId: string): Promise<CsclSegment 
 
 export async function fetchSegmentsByIds(physicalIds: string[]): Promise<CsclSegment[]> {
   if (physicalIds.length === 0) return [];
-  const idList = physicalIds.map((id) => `'${id}'`).join(',');
+  const idList = physicalIds.map((id) => `'${escapeSoql(id)}'`).join(',');
   return sodaFetch<CsclSegment[]>(CSCL_API, {
     $where: `physicalid in (${idList})`,
     $limit: String(physicalIds.length),

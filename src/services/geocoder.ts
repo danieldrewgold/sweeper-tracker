@@ -18,8 +18,11 @@ export interface NominatimResult {
 }
 
 const cache = new Map<string, NominatimResult[]>();
-let lastRequestTime = 0;
+const MAX_CACHE_SIZE = 100;
 const MIN_INTERVAL = 1100; // 1.1 seconds
+
+// Serialized throttle queue — ensures only one request at a time
+let throttleChain: Promise<void> = Promise.resolve();
 
 /** Add ordinal suffixes to bare street numbers so Nominatim resolves correctly.
  *  e.g. "W 59 ST" → "W 59th ST", "123 E 4 Street" → "123 E 4th Street" */
@@ -47,12 +50,13 @@ function ordinalSuffix(n: number): string {
   }
 }
 
-async function throttle(): Promise<void> {
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < MIN_INTERVAL) {
-    await new Promise((r) => setTimeout(r, MIN_INTERVAL - elapsed));
-  }
+/** Serialize requests through a promise chain so only one fires at a time,
+ *  with MIN_INTERVAL between each request. */
+function enqueueThrottle(): Promise<void> {
+  throttleChain = throttleChain.then(
+    () => new Promise((r) => setTimeout(r, MIN_INTERVAL))
+  );
+  return throttleChain;
 }
 
 export async function geocodeSearch(query: string): Promise<NominatimResult[]> {
@@ -60,7 +64,7 @@ export async function geocodeSearch(query: string): Promise<NominatimResult[]> {
   const cacheKey = normalized.toLowerCase();
   if (cache.has(cacheKey)) return cache.get(cacheKey)!;
 
-  await throttle();
+  await enqueueThrottle();
 
   const params = new URLSearchParams({
     q: normalized,
@@ -76,13 +80,17 @@ export async function geocodeSearch(query: string): Promise<NominatimResult[]> {
     headers: { 'User-Agent': 'NYCSweepTracker/1.0' },
   });
 
-  lastRequestTime = Date.now();
-
   if (!response.ok) {
     throw new Error(`Nominatim error: ${response.status}`);
   }
 
   const results: NominatimResult[] = await response.json();
+
+  // Evict oldest entries if cache grows too large
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
   cache.set(cacheKey, results);
   return results;
 }

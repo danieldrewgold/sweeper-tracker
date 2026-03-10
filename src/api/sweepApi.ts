@@ -1,5 +1,5 @@
 import { SWEEP_API } from '../utils/constants';
-import { sodaFetch } from './sodaClient';
+import { sodaFetch, escapeSoql } from './sodaClient';
 import type { SweepRecord } from '../types/sweep';
 
 function todayMidnightISO(): string {
@@ -24,7 +24,7 @@ export async function fetchSweepsSince(
   limit = 50000
 ): Promise<SweepRecord[]> {
   return sodaFetch<SweepRecord[]>(SWEEP_API, {
-    $where: `date_visited>'${sinceISO}'`,
+    $where: `date_visited>'${escapeSoql(sinceISO)}'`,
     $order: 'date_visited ASC',
     $limit: String(limit),
   });
@@ -45,7 +45,7 @@ export async function fetchHistoricalSweeps(
   const sinceISO = since.toISOString().split('.')[0];
 
   return sodaFetch<SweepRecord[]>(SWEEP_API, {
-    $where: `physical_id='${physicalId}' AND date_visited>'${sinceISO}'`,
+    $where: `physical_id='${escapeSoql(physicalId)}' AND date_visited>'${escapeSoql(sinceISO)}'`,
     $order: 'date_visited DESC',
     $limit: '200',
   });

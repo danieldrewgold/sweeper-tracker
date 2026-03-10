@@ -4,6 +4,7 @@ import type { SweepRecord, HistoricalPattern, EtaResult } from './types/sweep';
 import type { ParsedSchedule } from './types/asp';
 
 const STORAGE_KEY = 'sweeptracker_block';
+const MAX_SEGMENTS = 2000; // cap to prevent unbounded memory growth
 
 interface SweepState {
   // Map
@@ -75,6 +76,18 @@ export const useSweepStore = create<SweepState>((set) => ({
           next.set(seg.physicalid, seg);
         }
       }
+      // Evict oldest entries if over cap (Map preserves insertion order)
+      if (next.size > MAX_SEGMENTS) {
+        const excess = next.size - MAX_SEGMENTS;
+        const userPid = state.userPhysicalId;
+        let removed = 0;
+        for (const key of next.keys()) {
+          if (removed >= excess) break;
+          if (key === userPid) continue; // keep user's block
+          next.delete(key);
+          removed++;
+        }
+      }
       return { segments: next };
     }),
 
@@ -95,7 +108,8 @@ export const useSweepStore = create<SweepState>((set) => ({
     set((state) => {
       const next = new Map(state.sweepRecords);
       for (const r of records) {
-        const existing = next.get(r.physical_id) ?? [];
+        // Clone the array to avoid mutating previous state
+        const existing = [...(next.get(r.physical_id) ?? [])];
         existing.push(r);
         next.set(r.physical_id, existing);
       }

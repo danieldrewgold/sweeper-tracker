@@ -30,7 +30,6 @@ export function useUserBlock() {
   const setAspSchedules = useSweepStore((s) => s.setAspSchedules);
   const setSweepVisitTime = useSweepStore((s) => s.setSweepVisitTime);
   const addSegments = useSweepStore((s) => s.addSegments);
-  const segments = useSweepStore((s) => s.segments);
   const setLoading = useSweepStore((s) => s.setLoading);
   const setError = useSweepStore((s) => s.setError);
 
@@ -58,11 +57,14 @@ export function useUserBlock() {
         setHistoricalPattern(pattern);
         setAspSchedules(parseAllSigns(aspSigns));
 
-        // Extract real-time visit time from mappingapi
+        // Extract latest real-time visit time from mappingapi
         if (sweepInfo?.Times?.length) {
-          const visited = sweepInfo.Times.find((t) => t.Type === 'VISITED');
-          if (visited?.VisitedTime) {
-            setSweepVisitTime(new Date(visited.VisitedTime));
+          const visitedTimes = sweepInfo.Times
+            .filter((t) => t.Type === 'VISITED')
+            .map((t) => new Date(t.VisitedTime));
+          if (visitedTimes.length > 0) {
+            const latest = visitedTimes.reduce((a, b) => (a > b ? a : b));
+            setSweepVisitTime(latest);
           }
         }
       } catch (err) {
@@ -103,14 +105,15 @@ export function useUserBlock() {
   /** Select block by clicking a segment on the map */
   const selectFromClick = useCallback(
     async (physicalId: string) => {
-      const segment = segments.get(physicalId);
+      // Read segments from store imperatively to avoid stale closure
+      const segment = useSweepStore.getState().segments.get(physicalId);
       if (!segment) return;
 
       const latLng = getSegmentCenter(segment);
       const address = buildAddress(segment);
       await loadBlockData(segment, physicalId, latLng, address);
     },
-    [segments, loadBlockData]
+    [loadBlockData]
   );
 
   return { selectFromGeocode, selectFromClick };

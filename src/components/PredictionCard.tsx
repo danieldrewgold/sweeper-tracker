@@ -32,12 +32,13 @@ export default function PredictionCard() {
 
   if (!userPhysicalId) return null;
 
-  // Use real-time visit time from mappingapi (authoritative)
-  const isToday = sweepVisitTime
-    ? sweepVisitTime.toDateString() === new Date().toDateString()
-    : false;
-  const wasSwept = isToday;
-  const lastSweepTime = sweepVisitTime;
+  // Use real-time visit time — check both single-block and batch scan for consistency
+  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
+  const todayStr = new Date().toDateString();
+  const singleBlockSwept = sweepVisitTime && sweepVisitTime.toDateString() === todayStr;
+  const batchSweptTime = userPhysicalId ? realtimeSweepStatus.get(userPhysicalId) : undefined;
+  const wasSwept = !!(singleBlockSwept || batchSweptTime);
+  const lastSweepTime = sweepVisitTime ?? batchSweptTime ?? null;
 
   // Find today's ASP schedule
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
@@ -128,7 +129,7 @@ export default function PredictionCard() {
                 Not yet swept today
               </Text>
             </HStack>
-            {lastSweepTime && !isToday && (
+            {lastSweepTime && !wasSwept && (
               <Text fontSize="xs" color="gray.500">
                 Last swept {lastSweepTime.toLocaleDateString('en-US', { weekday: 'long' })}{' '}
                 at {formatTime(lastSweepTime)}
