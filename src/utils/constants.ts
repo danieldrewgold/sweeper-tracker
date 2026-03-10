@@ -11,9 +11,9 @@ export const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
 export const SODA_APP_TOKEN = import.meta.env.VITE_SODA_APP_TOKEN || '';
 
-// NYC default center (Midtown)
-export const NYC_CENTER: [number, number] = [40.7580, -73.9855];
-export const DEFAULT_ZOOM = 13;
+// NYC default center (Manhattan, centered for good overview)
+export const NYC_CENTER: [number, number] = [40.7484, -73.9857];
+export const DEFAULT_ZOOM = 14;
 export const MIN_SEGMENT_ZOOM = 14;
 
 // Polling

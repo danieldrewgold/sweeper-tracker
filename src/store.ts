@@ -3,6 +3,8 @@ import type { CsclSegment } from './types/cscl';
 import type { SweepRecord, HistoricalPattern, EtaResult } from './types/sweep';
 import type { ParsedSchedule } from './types/asp';
 
+const STORAGE_KEY = 'sweeptracker_block';
+
 interface SweepState {
   // Map
   mapCenter: [number, number];
@@ -55,8 +57,8 @@ interface SweepState {
 }
 
 export const useSweepStore = create<SweepState>((set) => ({
-  mapCenter: [40.7580, -73.9855],
-  mapZoom: 13,
+  mapCenter: [40.7484, -73.9857],
+  mapZoom: 14,
 
   segments: new Map(),
   addSegments: (segs) =>
@@ -106,9 +108,14 @@ export const useSweepStore = create<SweepState>((set) => ({
   userAddress: null,
   userPhysicalId: null,
   userLatLng: null,
-  setUserBlock: (address, physicalId, latLng) =>
-    set({ userAddress: address, userPhysicalId: physicalId, userLatLng: latLng }),
-  clearUserBlock: () =>
+  setUserBlock: (address, physicalId, latLng) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ address, physicalId, latLng }));
+    } catch {}
+    set({ userAddress: address, userPhysicalId: physicalId, userLatLng: latLng });
+  },
+  clearUserBlock: () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     set({
       userAddress: null,
       userPhysicalId: null,
@@ -117,7 +124,8 @@ export const useSweepStore = create<SweepState>((set) => ({
       aspSchedules: [],
       eta: null,
       sweepVisitTime: null,
-    }),
+    });
+  },
 
   historicalPattern: null,
   setHistoricalPattern: (p) => set({ historicalPattern: p }),

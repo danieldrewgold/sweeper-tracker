@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Box, Flex, VStack, Text, Alert, AlertIcon, IconButton, useBreakpointValue } from '@chakra-ui/react';
 import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import './App.css';
@@ -12,6 +12,7 @@ import { useSweepData } from './hooks/useSweepData';
 import { useEta } from './hooks/useEta';
 import { useUserBlock } from './hooks/useUserBlock';
 import { useSweepStore } from './store';
+import { useRestoreBlock } from './hooks/useRestoreBlock';
 
 function DesktopSidebar() {
   const { selectFromGeocode } = useUserBlock();
@@ -79,6 +80,15 @@ function MobilePanel() {
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
   const [expanded, setExpanded] = useState(false);
 
+  // Auto-expand when a block is selected
+  const prevBlockRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (userPhysicalId && userPhysicalId !== prevBlockRef.current) {
+      setExpanded(true);
+    }
+    prevBlockRef.current = userPhysicalId;
+  }, [userPhysicalId]);
+
   return (
     <Box
       position="absolute"
@@ -120,18 +130,23 @@ function MobilePanel() {
           </Text>
         )}
 
-        <PredictionCard />
-
         {expanded && (
           <>
+            <PredictionCard />
             <AspScheduleCard />
             <BlockStatus />
           </>
         )}
 
-        {!userPhysicalId && !isLoading && !expanded && (
+        {!expanded && userPhysicalId && (
+          <Text fontSize="xs" color="green.600" textAlign="center" pb={1} cursor="pointer" onClick={() => setExpanded(true)}>
+            Tap to see block details
+          </Text>
+        )}
+
+        {!userPhysicalId && !isLoading && (
           <Text fontSize="xs" color="gray.400" textAlign="center" pb={1}>
-            Enter an address above to get started
+            Enter an address to get started
           </Text>
         )}
       </VStack>
@@ -142,6 +157,7 @@ function MobilePanel() {
 function AppContent() {
   useSweepData();
   useEta();
+  useRestoreBlock();
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 

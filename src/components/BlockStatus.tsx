@@ -16,7 +16,7 @@ export default function BlockStatus() {
         <Text>
           {sweptSegments > 0
             ? `${sweptSegments.toLocaleString()} blocks swept today`
-            : 'No sweep data yet'}
+            : 'Waiting for sweep activity...'}
         </Text>
         <Text>
           {lastPollTime ? `Updated ${timeAgo(lastPollTime)}` : 'Loading...'}

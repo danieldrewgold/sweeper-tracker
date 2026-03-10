@@ -1,0 +1,16 @@
+{
+  "name": "SweepTracker",
+  "short_name": "SweepTracker",
+  "description": "Track NYC street sweepers in real-time",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#38A169",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
