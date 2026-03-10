@@ -1,4 +1,5 @@
 import { Box, Heading, Text, HStack, Link, Icon } from '@chakra-ui/react';
+import { useSweepStore } from '../store';
 
 function BroomIcon(props: React.ComponentProps<typeof Icon>) {
   return (
@@ -19,10 +20,22 @@ function BroomIcon(props: React.ComponentProps<typeof Icon>) {
 }
 
 export default function Header() {
+  const clearUserBlock = useSweepStore((s) => s.clearUserBlock);
+
+  const handleLogoClick = () => {
+    clearUserBlock();
+    // Remove address param from URL
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('address')) {
+      url.searchParams.delete('address');
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
   return (
     <Box bg="gray.800" color="white" px={4} py={3}>
       <HStack justify="space-between" align="center">
-        <HStack spacing={2}>
+        <HStack spacing={2} cursor="pointer" onClick={handleLogoClick} _hover={{ opacity: 0.8 }}>
           <BroomIcon boxSize={6} color="orange.300" />
           <Heading size="md" fontWeight="bold" letterSpacing="-0.5px" color="orange.300">
             sweep
