@@ -1,0 +1,13 @@
+/* Leaflet z-index fix for Chakra modals */
+.leaflet-pane {
+  z-index: 1;
+}
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 2;
+}
+
+/* Clickable segments show pointer cursor */
+.leaflet-interactive {
+  cursor: pointer;
+}
