@@ -33,11 +33,7 @@ export default function SegmentLayer() {
   // Add new segments as polylines — use cached real-time status for instant coloring
   useEffect(() => {
     const zoom = map.getZoom();
-    if (zoom < MIN_SEGMENT_ZOOM) {
-      layerGroupRef.current.clearLayers();
-      polylineMapRef.current.clear();
-      return;
-    }
+    if (zoom < MIN_SEGMENT_ZOOM) return; // zoomend handler handles clearing
 
     const rtStatus = useSweepStore.getState().realtimeSweepStatus;
     const now = Date.now();
@@ -105,8 +101,13 @@ export default function SegmentLayer() {
       // Priority 1: SODA data (delayed but reliable for historical)
       const records = sweepRecords.get(id);
       if (records && records.length > 0) {
-        const latest = records[records.length - 1];
-        const visitTime = new Date(latest.date_visited).getTime();
+        // Find the actual latest record (don't assume sorted order)
+        let latestTime = 0;
+        for (const r of records) {
+          const t = new Date(r.date_visited).getTime();
+          if (t > latestTime) latestTime = t;
+        }
+        const visitTime = latestTime;
         if (visitTime >= frontierCutoff) {
           color = COLORS.frontier;
           opacity = 0.9;

@@ -28,12 +28,18 @@ export function parseSignDescription(sign: AspSign): ParsedSchedule[] {
   const startStr = times[0];
   const endStr = times[1];
 
+  const startMinutes = parseTimeToMinutes(startStr);
+  const endMinutes = parseTimeToMinutes(endStr);
+
+  // Skip if times couldn't be parsed
+  if (isNaN(startMinutes) || isNaN(endMinutes)) return [];
+
   return days.map((day) => ({
     day,
     startTime: startStr,
     endTime: endStr,
-    startMinutes: parseTimeToMinutes(startStr),
-    endMinutes: parseTimeToMinutes(endStr),
+    startMinutes,
+    endMinutes,
     side: sign.side_of_street || '',
     rawDescription: desc,
   }));

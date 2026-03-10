@@ -1,7 +1,10 @@
 /** Format minutes since midnight to a display string like "8:35 AM" */
 export function formatMinutes(minutes: number): string {
-  const h24 = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
+  if (isNaN(minutes)) return '';
+  // Clamp to valid 24-hour range
+  const clamped = ((minutes % 1440) + 1440) % 1440;
+  const h24 = Math.floor(clamped / 60);
+  const m = Math.round(clamped % 60);
   const period = h24 >= 12 ? 'PM' : 'AM';
   const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
   return `${h12}:${String(m).padStart(2, '0')} ${period}`;
@@ -13,7 +16,7 @@ export function parseTimeToMinutes(timeStr: string): number {
   if (timeStr.toUpperCase() === 'NOON') return 720;
 
   const match = timeStr.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
-  if (!match) return 0;
+  if (!match) return NaN; // return NaN on parse failure (distinguishable from midnight = 0)
 
   let hours = parseInt(match[1]);
   const minutes = match[2] ? parseInt(match[2]) : 0;
@@ -25,9 +28,17 @@ export function parseTimeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
-/** Get minutes since midnight for a Date */
+/** Get minutes since midnight for a Date, in NYC Eastern time.
+ *  Ensures correct results regardless of the user's local timezone. */
 export function dateToMinutes(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
+  const nycTime = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return nycTime.getHours() * 60 + nycTime.getMinutes();
+}
+
+/** Get day-of-week (0=Sun) for a Date, in NYC Eastern time. */
+export function dateToNycDay(date: Date): number {
+  const nycTime = new Date(date.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  return nycTime.getDay();
 }
 
 /** Format a Date to "9:14 AM" */

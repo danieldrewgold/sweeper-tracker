@@ -17,8 +17,10 @@ export function useRestoreBlock() {
   const userAddress = useSweepStore((s) => s.userAddress);
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
   const hasRestored = useRef(false);
+  const selectRef = useRef(selectFromGeocode);
+  selectRef.current = selectFromGeocode;
 
-  // On mount: check URL param or LocalStorage
+  // On mount: check URL param or LocalStorage (runs once)
   useEffect(() => {
     if (hasRestored.current) return;
     hasRestored.current = true;
@@ -30,7 +32,7 @@ export function useRestoreBlock() {
       // URL param takes priority — search and select
       geocodeSearch(urlAddress).then((results) => {
         if (results.length > 0) {
-          selectFromGeocode(results[0]);
+          selectRef.current(results[0]);
         }
       }).catch(() => {});
       return;
@@ -44,13 +46,13 @@ export function useRestoreBlock() {
         if (address) {
           geocodeSearch(address).then((results) => {
             if (results.length > 0) {
-              selectFromGeocode(results[0]);
+              selectRef.current(results[0]);
             }
           }).catch(() => {});
         }
       }
     } catch {}
-  }, [selectFromGeocode]);
+  }, []); // stable — uses ref for selectFromGeocode
 
   // Sync current block to URL (without page reload)
   useEffect(() => {

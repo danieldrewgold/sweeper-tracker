@@ -1,6 +1,6 @@
 import { fetchHistoricalSweeps } from '../api/sweepApi';
 import type { HistoricalPattern } from '../types/sweep';
-import { dayName, formatMinutes, dateToMinutes } from '../utils/time';
+import { dayName, formatMinutes, dateToMinutes, dateToNycDay } from '../utils/time';
 
 export async function analyzeHistoricalPattern(
   physicalId: string
@@ -14,7 +14,7 @@ export async function analyzeHistoricalPattern(
 
   for (const r of records) {
     const date = new Date(r.date_visited);
-    const dow = date.getDay();
+    const dow = dateToNycDay(date); // use NYC timezone, not local
     const minutes = dateToMinutes(date);
 
     const existing = byDay.get(dow) ?? [];
