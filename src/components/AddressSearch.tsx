@@ -23,9 +23,9 @@ export default function AddressSearch({ onSelect }: Props) {
   const [query, setQuery] = useState('');
   const userAddress = useSweepStore((s) => s.userAddress);
 
-  // Sync input with store when block is selected from map click
+  // Sync input with store (set on map click, clear on logo reset)
   useEffect(() => {
-    if (userAddress) setQuery(userAddress);
+    setQuery(userAddress ?? '');
   }, [userAddress]);
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
