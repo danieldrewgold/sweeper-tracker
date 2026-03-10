@@ -22,6 +22,8 @@ export default function PredictionCard() {
   const eta = useSweepStore((s) => s.eta);
   const aspSchedules = useSweepStore((s) => s.aspSchedules);
   const isLoading = useSweepStore((s) => s.isLoading);
+  // Must call ALL hooks before any conditional returns (Rules of Hooks)
+  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
 
   // Tick every minute to keep countdown fresh
   const [, setTick] = useState(0);
@@ -33,7 +35,6 @@ export default function PredictionCard() {
   if (!userPhysicalId) return null;
 
   // Use real-time visit time — check both single-block and batch scan for consistency
-  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
   const todayStr = new Date().toDateString();
   const singleBlockSwept = sweepVisitTime && sweepVisitTime.toDateString() === todayStr;
   const batchSweptTime = userPhysicalId ? realtimeSweepStatus.get(userPhysicalId) : undefined;
