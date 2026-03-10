@@ -14,6 +14,7 @@ import { useUserBlock } from './hooks/useUserBlock';
 import { useSweepStore } from './store';
 import { useRestoreBlock } from './hooks/useRestoreBlock';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 function DesktopSidebar() {
   const { selectFromGeocode } = useUserBlock();
@@ -195,6 +196,7 @@ export default function App() {
     <>
       <AppContent />
       <Analytics />
+      <SpeedInsights />
     </>
   );
 }
