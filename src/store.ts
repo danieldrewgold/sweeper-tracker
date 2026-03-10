@@ -30,6 +30,12 @@ interface SweepState {
   setSweepVisitTime: (t: Date | null) => void;
   setSweepActive: (active: boolean, cacheTime: number) => void;
 
+  // Real-time sweep status for ALL visible segments (from sweepinfo batch scan)
+  // Map<physicalId, visitTime | null> — null = checked but not swept today
+  realtimeSweepStatus: Map<string, Date | null>;
+  mergeRealtimeSweepStatus: (updates: Map<string, Date | null>) => void;
+  clearRealtimeSweepStatus: () => void;
+
   // User's block
   userAddress: string | null;
   userPhysicalId: string | null;
@@ -104,6 +110,17 @@ export const useSweepStore = create<SweepState>((set) => ({
   sweepTileCacheTime: 0,
   setSweepVisitTime: (t) => set({ sweepVisitTime: t }),
   setSweepActive: (active, cacheTime) => set({ sweepActive: active, sweepTileCacheTime: cacheTime }),
+
+  realtimeSweepStatus: new Map(),
+  mergeRealtimeSweepStatus: (updates) =>
+    set((state) => {
+      const next = new Map(state.realtimeSweepStatus);
+      for (const [id, time] of updates) {
+        next.set(id, time);
+      }
+      return { realtimeSweepStatus: next };
+    }),
+  clearRealtimeSweepStatus: () => set({ realtimeSweepStatus: new Map() }),
 
   userAddress: null,
   userPhysicalId: null,

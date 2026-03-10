@@ -32,6 +32,7 @@ export default function MapLegend() {
       {sweepActive && (
         <>
           <LegendItem color={COLORS.swept} label="Swept today" />
+          <LegendItem color={COLORS.frontier} label="Just swept" />
           <LegendItem color={COLORS.notYet} label="Not yet swept" />
         </>
       )}

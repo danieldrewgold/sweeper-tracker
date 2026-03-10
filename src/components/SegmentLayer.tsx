@@ -30,7 +30,7 @@ export default function SegmentLayer() {
     };
   }, [map]);
 
-  // Add new segments as polylines
+  // Add new segments as polylines — use cached real-time status for instant coloring
   useEffect(() => {
     const zoom = map.getZoom();
     if (zoom < MIN_SEGMENT_ZOOM) {
@@ -39,17 +39,32 @@ export default function SegmentLayer() {
       return;
     }
 
+    const rtStatus = useSweepStore.getState().realtimeSweepStatus;
+    const now = Date.now();
+    const frontierCutoff = now - FRONTIER_WINDOW_MS;
+
     for (const [id, segment] of segments) {
       if (polylineMapRef.current.has(id)) continue;
+
+      // Determine initial color from cached real-time data (avoids gray flash)
+      let initColor: string = COLORS.notYet;
+      let initOpacity = 0.7;
+      if (rtStatus.has(id)) {
+        const visitTime = rtStatus.get(id);
+        if (visitTime) {
+          initColor = visitTime.getTime() >= frontierCutoff ? COLORS.frontier : COLORS.swept;
+          initOpacity = visitTime.getTime() >= frontierCutoff ? 0.9 : 0.8;
+        }
+      }
 
       const latLngs = segmentToLatLngs(segment);
       const polylines: L.Polyline[] = [];
 
       for (const line of latLngs) {
         const polyline = L.polyline(line, {
-          color: COLORS.notYet,
+          color: initColor,
           weight: COLORS.defaultWeight,
-          opacity: 0.7,
+          opacity: initOpacity,
           interactive: true,
         });
         polyline.on('click', () => selectFromClickRef.current(id));
@@ -68,16 +83,18 @@ export default function SegmentLayer() {
     }
   }, [segments, map]);
 
-  // Update colors based on SODA sweep data + real-time sweepinfo + user selection
+  // Update colors based on SODA data + real-time sweepinfo batch scan + user selection
   const sweepVisitTime = useSweepStore((s) => s.sweepVisitTime);
+  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
 
   useEffect(() => {
     const now = Date.now();
     const frontierCutoff = now - FRONTIER_WINDOW_MS;
+    const todayStr = new Date().toDateString();
 
     // Check if user's block was swept today (from real-time sweepinfo API)
     const userSweptToday = sweepVisitTime
-      ? sweepVisitTime.toDateString() === new Date().toDateString()
+      ? sweepVisitTime.toDateString() === todayStr
       : false;
 
     for (const [id, polylines] of polylineMapRef.current) {
@@ -85,6 +102,7 @@ export default function SegmentLayer() {
       let weight: number = COLORS.defaultWeight;
       let opacity = 0.7;
 
+      // Priority 1: SODA data (delayed but reliable for historical)
       const records = sweepRecords.get(id);
       if (records && records.length > 0) {
         const latest = records[records.length - 1];
@@ -98,9 +116,29 @@ export default function SegmentLayer() {
         }
       }
 
+      // Priority 2: Real-time sweepinfo batch scan (overrides SODA for today)
+      if (realtimeSweepStatus.has(id)) {
+        const visitTime = realtimeSweepStatus.get(id);
+        if (visitTime) {
+          // Swept today — check if it's a frontier (recent sweep)
+          const visitMs = visitTime.getTime();
+          if (visitMs >= frontierCutoff) {
+            color = COLORS.frontier;
+            opacity = 0.9;
+          } else {
+            color = COLORS.swept;
+            opacity = 0.8;
+          }
+        }
+        // If null (checked but not swept), keep as notYet (gray) — already default
+      }
+
+      // Priority 3: User's selected block (always on top)
       if (id === userPhysicalId) {
-        // Color green if swept today (from real-time data), otherwise blue
-        color = userSweptToday ? COLORS.swept : COLORS.userBlock;
+        // Use single-block sweepinfo result OR batch scan result
+        const batchSwept = realtimeSweepStatus.get(id);
+        const isSwept = userSweptToday || (batchSwept !== null && batchSwept !== undefined);
+        color = isSwept ? COLORS.swept : COLORS.userBlock;
         weight = COLORS.userBlockWeight;
         opacity = 1;
       }
@@ -109,7 +147,7 @@ export default function SegmentLayer() {
         pl.setStyle({ color, weight, opacity });
       }
     }
-  }, [sweepRecords, userPhysicalId, sweepVisitTime, segments]);
+  }, [sweepRecords, userPhysicalId, sweepVisitTime, realtimeSweepStatus, segments]);
 
   // Hide/show on zoom
   useEffect(() => {

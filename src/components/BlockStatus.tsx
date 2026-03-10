@@ -7,8 +7,13 @@ export default function BlockStatus() {
   const sweepRecords = useSweepStore((s) => s.sweepRecords);
   const segments = useSweepStore((s) => s.segments);
 
+  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
+
   const totalSegments = segments.size;
-  const sweptSegments = sweepRecords.size;
+  // Count swept blocks from both SODA data and real-time sweepinfo scan
+  const sodaSwept = sweepRecords.size;
+  const realtimeSwept = [...realtimeSweepStatus.values()].filter((v) => v !== null).length;
+  const sweptSegments = Math.max(sodaSwept, realtimeSwept);
 
   return (
     <Box px={1} py={1}>
