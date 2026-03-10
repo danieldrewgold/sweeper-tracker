@@ -1,6 +1,9 @@
 import { SWEEP_API } from '../utils/constants';
 import { sodaFetch, escapeSoql } from './sodaClient';
+import { cacheGet, cacheSet } from '../services/cache';
 import type { SweepRecord } from '../types/sweep';
+
+const HISTORICAL_TTL = 12 * 60 * 60 * 1000; // 12 hours — historical data doesn't change within a day
 
 function todayMidnightISO(): string {
   const now = new Date();
@@ -40,13 +43,21 @@ export async function fetchHistoricalSweeps(
   physicalId: string,
   weeksBack = 8
 ): Promise<SweepRecord[]> {
+  const cacheKey = `hist:${physicalId}`;
+
+  const cached = await cacheGet<SweepRecord[]>('historical-sweeps', cacheKey);
+  if (cached) return cached;
+
   const since = new Date();
   since.setDate(since.getDate() - weeksBack * 7);
   const sinceISO = since.toISOString().split('.')[0];
 
-  return sodaFetch<SweepRecord[]>(SWEEP_API, {
+  const results = await sodaFetch<SweepRecord[]>(SWEEP_API, {
     $where: `physical_id='${escapeSoql(physicalId)}' AND date_visited>'${escapeSoql(sinceISO)}'`,
     $order: 'date_visited DESC',
     $limit: '200',
   });
+
+  cacheSet('historical-sweeps', cacheKey, results, HISTORICAL_TTL);
+  return results;
 }

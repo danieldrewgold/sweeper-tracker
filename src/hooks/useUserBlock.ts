@@ -6,6 +6,7 @@ import { fetchAspSigns } from '../api/aspApi';
 import { fetchSweepInfo } from '../api/mappingApi';
 import { parseAllSigns } from '../services/aspParser';
 import { getSegmentCenter } from '../utils/geo';
+import { fetchSegmentById } from '../api/csclApi';
 import type { NominatimResult } from '../services/geocoder';
 import type { CsclSegment } from '../types/cscl';
 
@@ -116,5 +117,30 @@ export function useUserBlock() {
     [loadBlockData]
   );
 
-  return { selectFromGeocode, selectFromClick };
+  /** Restore a previously saved block (skip geocoding, use cached segment) */
+  const selectFromSaved = useCallback(
+    async (physicalId: string, latLng: [number, number], address: string) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const segment = await fetchSegmentById(physicalId);
+        if (!segment) {
+          setError('Could not find the saved block.');
+          setLoading(false);
+          return;
+        }
+
+        addSegments([segment]);
+        await loadBlockData(segment, physicalId, latLng, address);
+      } catch (err) {
+        console.error('Block restore failed:', err);
+        setError('Failed to restore block. Try searching again.');
+        setLoading(false);
+      }
+    },
+    [addSegments, loadBlockData, setLoading, setError]
+  );
+
+  return { selectFromGeocode, selectFromClick, selectFromSaved };
 }

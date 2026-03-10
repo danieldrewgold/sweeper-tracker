@@ -9,8 +9,10 @@ const CONCURRENCY = 8;
 /** Minimum delay between batches to avoid hammering the API */
 const BATCH_DELAY_MS = 50;
 
-/** Cache of already-queried physical_ids for today (cleared on date change) */
-const queriedToday = new Set<string>();
+/** Segments confirmed swept today — never re-query (streets don't un-sweep) */
+const confirmedSwept = new Set<string>();
+/** Segments checked but not swept — re-query on periodic rescan */
+const checkedNotSwept = new Set<string>();
 let queriedDate = '';
 
 /** Track if a scan is currently running (to avoid duplicate parallel scans) */
@@ -20,10 +22,11 @@ function getTodayStr(): string {
   return new Date().toDateString();
 }
 
-/** Clear the daily cache (e.g., on date rollover or periodic re-scan) */
+/** Reset cache for periodic re-scan. Only clears not-swept segments —
+ *  swept segments don't need re-checking (streets don't un-sweep). */
 export function resetScannerCache() {
-  queriedToday.clear();
-  queriedDate = '';
+  checkedNotSwept.clear();
+  // Keep confirmedSwept intact — no need to re-query those
 }
 
 /**
@@ -41,17 +44,18 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
   const today = getTodayStr();
 
-  // Date rollover — clear cache
+  // Date rollover — clear all caches
   if (queriedDate !== today) {
-    queriedToday.clear();
+    confirmedSwept.clear();
+    checkedNotSwept.clear();
     queriedDate = today;
     useSweepStore.getState().clearRealtimeSweepStatus();
   }
 
-  // Find segments we haven't queried yet
+  // Find segments we haven't queried yet (skip both swept and recently-checked-not-swept)
   const toQuery: Array<{ id: string; lat: number; lng: number }> = [];
   for (const [id, segment] of segments) {
-    if (queriedToday.has(id)) continue;
+    if (confirmedSwept.has(id) || checkedNotSwept.has(id)) continue;
     const [lat, lng] = getSegmentCenter(segment);
     if (lat === 0 && lng === 0) continue; // skip invalid geometry
     toQuery.push({ id, lat, lng });
@@ -69,11 +73,10 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
       const promises = batch.map(async ({ id, lat, lng }) => {
         // Skip if already queried (could have been done by a concurrent effect)
-        if (queriedToday.has(id)) return;
+        if (confirmedSwept.has(id) || checkedNotSwept.has(id)) return;
 
         try {
           const info = await fetchSweepInfo(lat, lng);
-          queriedToday.add(id);
 
           if (info && info.Times && info.Times.length > 0) {
             // Find the latest VISITED time
@@ -85,13 +88,15 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
               const latest = visitedTimes.reduce((a, b) => (a > b ? a : b));
               // Only count as swept if it's from today
               if (latest.toDateString() === today) {
+                confirmedSwept.add(id);
                 batchResults.set(id, latest);
                 return;
               }
             }
           }
 
-          // Not swept today
+          // Not swept today — can be re-checked on rescan
+          checkedNotSwept.add(id);
           batchResults.set(id, null);
         } catch (err) {
           // Network error — don't cache, allow retry

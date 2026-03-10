@@ -13,12 +13,14 @@ const STORAGE_KEY = 'sweeptracker_block';
  * Also syncs the current block to the URL for sharing.
  */
 export function useRestoreBlock() {
-  const { selectFromGeocode } = useUserBlock();
+  const { selectFromGeocode, selectFromSaved } = useUserBlock();
   const userAddress = useSweepStore((s) => s.userAddress);
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
   const hasRestored = useRef(false);
-  const selectRef = useRef(selectFromGeocode);
-  selectRef.current = selectFromGeocode;
+  const selectGeoRef = useRef(selectFromGeocode);
+  const selectSavedRef = useRef(selectFromSaved);
+  selectGeoRef.current = selectFromGeocode;
+  selectSavedRef.current = selectFromSaved;
 
   // On mount: check URL param or LocalStorage (runs once)
   useEffect(() => {
@@ -32,7 +34,7 @@ export function useRestoreBlock() {
       // URL param takes priority — search and select
       geocodeSearch(urlAddress).then((results) => {
         if (results.length > 0) {
-          selectRef.current(results[0]);
+          selectGeoRef.current(results[0]);
         }
       }).catch(() => {});
       return;
@@ -42,17 +44,25 @@ export function useRestoreBlock() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const { address } = JSON.parse(saved);
+        const { address, physicalId, latLng } = JSON.parse(saved);
+
+        // Fast path: restore directly from saved data (skips geocoding)
+        if (physicalId && latLng && address) {
+          selectSavedRef.current(physicalId, latLng, address);
+          return;
+        }
+
+        // Fallback: geocode the address
         if (address) {
           geocodeSearch(address).then((results) => {
             if (results.length > 0) {
-              selectRef.current(results[0]);
+              selectGeoRef.current(results[0]);
             }
           }).catch(() => {});
         }
       }
     } catch {}
-  }, []); // stable — uses ref for selectFromGeocode
+  }, []); // stable — uses refs for callbacks
 
   // Sync current block to URL (without page reload)
   useEffect(() => {
