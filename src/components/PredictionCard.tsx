@@ -21,6 +21,7 @@ export default function PredictionCard() {
   const historicalPattern = useSweepStore((s) => s.historicalPattern);
   const eta = useSweepStore((s) => s.eta);
   const aspSchedules = useSweepStore((s) => s.aspSchedules);
+  const isLoading = useSweepStore((s) => s.isLoading);
 
   // Tick every minute to keep countdown fresh
   const [, setTick] = useState(0);
@@ -172,6 +173,16 @@ export default function PredictionCard() {
                 ±{historicalPattern.rangeMinutes} min)
               </Text>
             </Box>
+          </>
+        )}
+
+        {/* No historical data available */}
+        {!historicalPattern && !isLoading && !wasSwept && (
+          <>
+            <Divider />
+            <Text fontSize="xs" color="gray.400">
+              No historical sweep data for this block. ETA estimates aren't available for all streets.
+            </Text>
           </>
         )}
       </VStack>
