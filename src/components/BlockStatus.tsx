@@ -11,19 +11,22 @@ export default function BlockStatus() {
   const sweptSegments = sweepRecords.size;
 
   return (
-    <Box px={1} py={2}>
-      <HStack justify="space-between" fontSize="xs" color="gray.500">
-        <Text>
-          {sweptSegments > 0
-            ? `${sweptSegments.toLocaleString()} blocks swept today`
-            : 'Waiting for sweep activity...'}
-        </Text>
+    <Box px={1} py={1}>
+      <HStack justify="space-between" fontSize="xs" color="gray.400">
+        <HStack spacing={2}>
+          <Box w="6px" h="6px" borderRadius="full" bg={sweptSegments > 0 ? 'green.400' : 'gray.500'} />
+          <Text>
+            {sweptSegments > 0
+              ? `${sweptSegments.toLocaleString()} blocks swept today`
+              : 'Waiting for sweep activity...'}
+          </Text>
+        </HStack>
         <Text>
           {lastPollTime ? `Updated ${timeAgo(lastPollTime)}` : 'Loading...'}
         </Text>
       </HStack>
       {totalSegments > 0 && (
-        <Text fontSize="xs" color="gray.400">
+        <Text fontSize="xs" color="gray.500" pl={4}>
           {totalSegments.toLocaleString()} blocks loaded in view
         </Text>
       )}

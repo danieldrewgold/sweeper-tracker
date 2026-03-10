@@ -22,12 +22,12 @@ export const FRONTIER_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
 // Segment colors
 export const COLORS = {
-  swept: '#38A169',
-  notYet: '#A0AEC0',
-  frontier: '#D69E2E',
-  userBlock: '#3182CE',
-  userBlockWeight: 6,
-  defaultWeight: 3,
+  swept: '#22C55E',
+  notYet: '#CBD5E1',
+  frontier: '#EAB308',
+  userBlock: '#3B82F6',
+  userBlockWeight: 7,
+  defaultWeight: 4,
 } as const;
 
 // CSCL fetch radius in meters

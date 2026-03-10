@@ -24,16 +24,19 @@ function DesktopSidebar() {
     <Box
       w="380px"
       flexShrink={0}
-      bg="gray.50"
+      bg="gray.100"
       overflowY="auto"
       borderRight="1px"
       borderColor="gray.200"
       display="flex"
       flexDirection="column"
     >
-      <VStack align="stretch" spacing={3} p={4} flex={1}>
+      {/* Search container */}
+      <Box bg="white" px={4} pt={4} pb={3} borderBottom="1px" borderColor="gray.200">
         <AddressSearch onSelect={selectFromGeocode} />
+      </Box>
 
+      <VStack align="stretch" spacing={3} p={4} flex={1}>
         {error && (
           <Alert status="error" borderRadius="md" fontSize="sm">
             <AlertIcon />
@@ -51,12 +54,22 @@ function DesktopSidebar() {
         <AspScheduleCard />
 
         {!userPhysicalId && !isLoading && (
-          <Box textAlign="center" py={8}>
-            <Text fontSize="lg" mb={2}>
-              Welcome to SweepTracker
+          <Box
+            textAlign="center"
+            py={10}
+            px={6}
+            bg="white"
+            borderRadius="xl"
+            boxShadow="sm"
+            border="1px dashed"
+            borderColor="gray.200"
+          >
+            <Box fontSize="3xl" mb={3}>🧹</Box>
+            <Text fontSize="lg" fontWeight="semibold" color="gray.700" mb={2}>
+              Track your street sweeper
             </Text>
-            <Text fontSize="sm" color="gray.500">
-              Enter your NYC address to see when the street sweeper
+            <Text fontSize="sm" color="gray.500" lineHeight="tall">
+              Enter your NYC address above to see when the sweeper
               typically reaches your block and track it live.
             </Text>
             <Text fontSize="xs" color="gray.400" mt={4}>
@@ -66,7 +79,7 @@ function DesktopSidebar() {
         )}
       </VStack>
 
-      <Box px={4} pb={2} borderTop="1px" borderColor="gray.200">
+      <Box bg="gray.800" px={4} py={2}>
         <BlockStatus />
       </Box>
     </Box>
@@ -145,8 +158,8 @@ function MobilePanel() {
         )}
 
         {!userPhysicalId && !isLoading && (
-          <Text fontSize="xs" color="gray.400" textAlign="center" pb={1}>
-            Enter an address to get started
+          <Text fontSize="xs" color="gray.500" textAlign="center" pb={1}>
+            🧹 Enter an address to get started
           </Text>
         )}
       </VStack>

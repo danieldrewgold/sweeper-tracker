@@ -48,14 +48,15 @@ export default function Header() {
           <Link
             href="https://buymeacoffee.com/danielgold"
             isExternal
-            bg="orange.400"
-            color="white"
+            color="gray.400"
+            border="1px"
+            borderColor="gray.600"
             px={3}
             py={1}
             borderRadius="full"
             fontSize="xs"
-            fontWeight="bold"
-            _hover={{ bg: 'orange.300', textDecoration: 'none' }}
+            fontWeight="medium"
+            _hover={{ color: 'orange.300', borderColor: 'orange.300', textDecoration: 'none' }}
           >
             Buy me a coffee
           </Link>

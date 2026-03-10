@@ -79,7 +79,7 @@ export default function AddressSearch({ onSelect }: Props) {
     <Box position="relative">
       <InputGroup>
         <InputLeftElement pointerEvents="none">
-          {isSearching ? <Spinner size="sm" color="green.500" /> : <SearchIcon color="gray.400" />}
+          {isSearching ? <Spinner size="sm" color="orange.500" /> : <SearchIcon color="gray.400" />}
         </InputLeftElement>
         <Input
           placeholder="Enter an NYC address..."
@@ -88,7 +88,7 @@ export default function AddressSearch({ onSelect }: Props) {
           onFocus={() => results.length > 0 && setShowResults(true)}
           bg="white"
           borderColor="gray.300"
-          _focus={{ borderColor: 'green.500', boxShadow: '0 0 0 1px var(--chakra-colors-green-500)' }}
+          _focus={{ borderColor: 'orange.400', boxShadow: '0 0 0 1px var(--chakra-colors-orange-400)' }}
         />
         {query && (
           <InputRightElement>
@@ -123,7 +123,7 @@ export default function AddressSearch({ onSelect }: Props) {
               px={3}
               py={2}
               cursor="pointer"
-              _hover={{ bg: 'green.50' }}
+              _hover={{ bg: 'orange.50' }}
               onClick={() => handleSelect(r)}
             >
               <Text fontSize="sm" noOfLines={1}>
