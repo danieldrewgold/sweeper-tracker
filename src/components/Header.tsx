@@ -14,7 +14,7 @@ export default function Header() {
         </HStack>
         <HStack spacing={3}>
           <Link
-            href="https://buymeacoffee.com/YOUR_USERNAME"
+            href="https://buymeacoffee.com/danielgold"
             isExternal
             bg="yellow.400"
             color="gray.800"
