@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="12" fill="#38A169"/>
-  <text x="32" y="46" text-anchor="middle" font-size="38" font-family="Arial,sans-serif" font-weight="bold" fill="white">S</text>
+  <!-- Broom handle -->
+  <line x1="20" y1="48" x2="40" y2="14" stroke="#F6E05E" stroke-width="4" stroke-linecap="round"/>
+  <!-- Broom head bristles -->
+  <path d="M14 52 L20 48 L18 56 Z" fill="#E2E8F0"/>
+  <path d="M18 54 L22 49 L21 58 Z" fill="#CBD5E0"/>
+  <path d="M16 50 L19 47 L16 54 Z" fill="#E2E8F0"/>
+  <path d="M20 56 L24 50 L24 58 Z" fill="#A0AEC0"/>
+  <path d="M12 50 L18 47 L14 55 Z" fill="#CBD5E0"/>
 </svg>
