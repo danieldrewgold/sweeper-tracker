@@ -24,3 +24,27 @@ export interface EtaResult {
   lastSeenTime: Date;
   blocksAway: number | null;
 }
+
+export interface SweepReliability {
+  skipRate: number;      // 0-100, percentage of ASP days the sweeper skipped
+  totalDays: number;     // total ASP-active days observed
+  totalTickets: number;  // tickets issued on this segment
+  /** Per-day skip rates [Mon%, Tue%, Wed%, Thu%, Fri%], null if no strong pattern */
+  dowSkipRates: number[] | null;
+}
+
+export interface InspectorTiming {
+  medianMinutes: number;  // minutes since midnight
+  q25Minutes: number;     // 25th percentile
+  q75Minutes: number;     // 75th percentile
+  sampleCount: number;
+}
+
+export interface PostSweepReturn {
+  afterRate: number;      // % of ticket-days where inspector returned after sweep
+  ticketDays: number;     // total ticket-days observed
+}
+
+export interface DoubleSweepInfo {
+  doubleDays: number;     // days block was swept 2+ times in the past year
+}

@@ -63,14 +63,16 @@ export async function fetchAspSignsByStreetAndCrossStreets(
   const cached = await cacheGet<AspSign[]>('asp-signs', cacheKey);
   if (cached) return cached;
 
-  const street = escapeSoql(onStreet.toUpperCase());
-  const from = escapeSoql(fromStreet.toUpperCase());
-  const to = escapeSoql(toStreet.toUpperCase());
   const boro = escapeSoql(borough.toUpperCase());
 
-  // Try exact match first, fall back to just street + borough
+  // Use LIKE patterns for street names (CSCL uses abbreviations, ASP uses full words)
+  const streetPat = escapeSoql(toAspLikePattern(onStreet));
+  const fromPat = escapeSoql(toAspLikePattern(fromStreet));
+  const toPat = escapeSoql(toAspLikePattern(toStreet));
+
+  // Try matching on_street + from_street + to_street (either direction since ASP block direction varies)
   const exact = await sodaFetch<AspSign[]>(ASP_API, {
-    $where: `upper(on_street)='${street}' AND upper(from_street)='${from}' AND upper(to_street)='${to}' AND upper(borough)='${boro}'`,
+    $where: `upper(on_street) like '${streetPat}' AND upper(borough)='${boro}' AND ((upper(from_street) like '${fromPat}' AND upper(to_street) like '${toPat}') OR (upper(from_street) like '${toPat}' AND upper(to_street) like '${fromPat}'))`,
     $limit: '20',
   });
 
@@ -79,6 +81,21 @@ export async function fetchAspSignsByStreetAndCrossStreets(
     return exact;
   }
 
-  // Fall back to street + borough only
-  return fetchAspSigns(onStreet, borough);
+  // ASP signs can span multiple blocks (e.g. "W 135 ST" to "W 140 ST") or
+  // straddle our block boundary. Try partial match: any sign where at least one
+  // of our cross streets appears in from_street or to_street.
+  const partial = await sodaFetch<AspSign[]>(ASP_API, {
+    $where: `upper(on_street) like '${streetPat}' AND upper(borough)='${boro}' AND (upper(from_street) like '${fromPat}' OR upper(to_street) like '${toPat}' OR upper(from_street) like '${toPat}' OR upper(to_street) like '${fromPat}')`,
+    $limit: '20',
+  });
+
+  if (partial.length > 0) {
+    cacheSet('asp-signs', cacheKey, partial, ASP_TTL);
+    return partial;
+  }
+
+  // No matching signs found even with partial match — return empty rather than
+  // falling back to avenue-wide query which creates a Frankenstein schedule
+  cacheSet('asp-signs', cacheKey, [], ASP_TTL);
+  return [];
 }

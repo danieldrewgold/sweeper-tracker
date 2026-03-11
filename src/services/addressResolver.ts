@@ -8,6 +8,7 @@ export interface ResolvedBlock {
   physicalId: string;
   segment: CsclSegment;
   latLng: [number, number];
+  nearbySegments: CsclSegment[];
 }
 
 /** Normalize NYC street abbreviations for comparison */
@@ -98,5 +99,6 @@ export async function resolveFromGeocode(result: NominatimResult): Promise<Resol
     physicalId: match.segment.physicalid,
     segment: match.segment,
     latLng: [lat, lng],
+    nearbySegments: segments,
   };
 }

@@ -5,8 +5,10 @@ import { analyzeHistoricalPattern } from '../services/historicalAnalyzer';
 import { fetchAspSigns } from '../api/aspApi';
 import { fetchSweepInfo } from '../api/mappingApi';
 import { parseAllSigns } from '../services/aspParser';
-import { getSegmentCenter } from '../utils/geo';
-import { fetchSegmentById } from '../api/csclApi';
+import { getSegmentCenter, findCrossStreets } from '../utils/geo';
+import { fetchSegmentById, fetchSegmentsInRadius } from '../api/csclApi';
+import { getSweepReliability, getInspectorTiming, getPostSweepReturn, getDoubleSweepInfo } from '../services/sweepData';
+import { fetchAspSignsByStreetAndCrossStreets } from '../api/aspApi';
 import type { NominatimResult } from '../services/geocoder';
 import type { CsclSegment } from '../types/cscl';
 
@@ -28,6 +30,10 @@ function buildAddress(segment: CsclSegment): string {
 export function useUserBlock() {
   const setUserBlock = useSweepStore((s) => s.setUserBlock);
   const setHistoricalPattern = useSweepStore((s) => s.setHistoricalPattern);
+  const setSweepReliability = useSweepStore((s) => s.setSweepReliability);
+  const setInspectorTiming = useSweepStore((s) => s.setInspectorTiming);
+  const setPostSweepReturn = useSweepStore((s) => s.setPostSweepReturn);
+  const setDoubleSweepInfo = useSweepStore((s) => s.setDoubleSweepInfo);
   const setAspSchedules = useSweepStore((s) => s.setAspSchedules);
   const setSweepVisitTime = useSweepStore((s) => s.setSweepVisitTime);
   const addSegments = useSweepStore((s) => s.addSegments);
@@ -47,15 +53,45 @@ export function useUserBlock() {
         const boroName = BORO_MAP[segment.boroughcode] ?? '';
         const streetName = segment.full_street_name || '';
 
-        const [pattern, aspSigns, sweepInfo] = await Promise.all([
+        // Try to find cross streets from loaded segments for precise ASP lookup
+        let allSegments = useSweepStore.getState().segments;
+        let crossStreets = findCrossStreets(segment, allSegments);
+
+        // If cross streets not found (edge of viewport or sparse data), fetch nearby segments
+        if (!crossStreets) {
+          const nearby = await fetchSegmentsInRadius(latLng[0], latLng[1], 300).catch(() => []);
+          if (nearby.length > 0) {
+            addSegments(nearby);
+            allSegments = useSweepStore.getState().segments;
+            crossStreets = findCrossStreets(segment, allSegments);
+          }
+        }
+
+        const fetchAsp = () => {
+          if (!boroName || !streetName) return Promise.resolve([]);
+          if (crossStreets) {
+            return fetchAspSignsByStreetAndCrossStreets(
+              streetName, crossStreets[0], crossStreets[1], boroName,
+            ).catch(() => []);
+          }
+          return fetchAspSigns(streetName, boroName).catch(() => []);
+        };
+
+        const [pattern, aspSigns, sweepInfo, reliability, inspTiming, postSweep, dblSweep] = await Promise.all([
           analyzeHistoricalPattern(physicalId).catch(() => null),
-          boroName && streetName
-            ? fetchAspSigns(streetName, boroName).catch(() => [])
-            : Promise.resolve([]),
+          fetchAsp(),
           fetchSweepInfo(latLng[0], latLng[1]).catch(() => null),
+          getSweepReliability(physicalId).catch(() => null),
+          boroName && streetName ? getInspectorTiming(streetName, boroName).catch(() => null) : null,
+          boroName && streetName ? getPostSweepReturn(streetName, boroName).catch(() => null) : null,
+          getDoubleSweepInfo(physicalId).catch(() => null),
         ]);
 
         setHistoricalPattern(pattern);
+        setSweepReliability(reliability);
+        setInspectorTiming(inspTiming);
+        setPostSweepReturn(postSweep);
+        setDoubleSweepInfo(dblSweep);
         setAspSchedules(parseAllSigns(aspSigns));
 
         // Extract latest real-time visit time from mappingapi
@@ -75,7 +111,7 @@ export function useUserBlock() {
         setLoading(false);
       }
     },
-    [setUserBlock, setHistoricalPattern, setAspSchedules, setSweepVisitTime, setLoading, setError]
+    [setUserBlock, setHistoricalPattern, setSweepReliability, setInspectorTiming, setPostSweepReturn, setDoubleSweepInfo, setAspSchedules, setSweepVisitTime, setLoading, setError]
   );
 
   /** Select block from address search (geocoded result) */
@@ -92,7 +128,7 @@ export function useUserBlock() {
           return;
         }
 
-        addSegments([resolved.segment]);
+        addSegments(resolved.nearbySegments);
         await loadBlockData(resolved.segment, resolved.physicalId, resolved.latLng, resolved.address);
       } catch (err) {
         console.error('Block selection failed:', err);
@@ -131,7 +167,9 @@ export function useUserBlock() {
           return;
         }
 
-        addSegments([segment]);
+        // Fetch nearby segments so cross-street matching works for ASP lookup
+        const nearby = await fetchSegmentsInRadius(latLng[0], latLng[1], 300).catch(() => [segment]);
+        addSegments(nearby.length > 0 ? nearby : [segment]);
         await loadBlockData(segment, physicalId, latLng, address);
       } catch (err) {
         console.error('Block restore failed:', err);

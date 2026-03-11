@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { CsclSegment } from './types/cscl';
-import type { SweepRecord, HistoricalPattern, EtaResult } from './types/sweep';
+import type { SweepRecord, HistoricalPattern, EtaResult, SweepReliability, InspectorTiming, PostSweepReturn, DoubleSweepInfo } from './types/sweep';
 import type { ParsedSchedule } from './types/asp';
 
 const STORAGE_KEY = 'sweeptracker_block';
@@ -47,6 +47,18 @@ interface SweepState {
   // Historical pattern
   historicalPattern: HistoricalPattern | null;
   setHistoricalPattern: (p: HistoricalPattern | null) => void;
+
+  // Sweep reliability (static pre-computed data)
+  sweepReliability: SweepReliability | null;
+  setSweepReliability: (r: SweepReliability | null) => void;
+
+  // Inspector & sweep patterns (static pre-computed data)
+  inspectorTiming: InspectorTiming | null;
+  setInspectorTiming: (t: InspectorTiming | null) => void;
+  postSweepReturn: PostSweepReturn | null;
+  setPostSweepReturn: (p: PostSweepReturn | null) => void;
+  doubleSweepInfo: DoubleSweepInfo | null;
+  setDoubleSweepInfo: (d: DoubleSweepInfo | null) => void;
 
   // ASP schedule
   aspSchedules: ParsedSchedule[];
@@ -152,6 +164,10 @@ export const useSweepStore = create<SweepState>((set) => ({
       userPhysicalId: null,
       userLatLng: null,
       historicalPattern: null,
+      sweepReliability: null,
+      inspectorTiming: null,
+      postSweepReturn: null,
+      doubleSweepInfo: null,
       aspSchedules: [],
       eta: null,
       sweepVisitTime: null,
@@ -160,6 +176,16 @@ export const useSweepStore = create<SweepState>((set) => ({
 
   historicalPattern: null,
   setHistoricalPattern: (p) => set({ historicalPattern: p }),
+
+  sweepReliability: null,
+  setSweepReliability: (r) => set({ sweepReliability: r }),
+
+  inspectorTiming: null,
+  setInspectorTiming: (t) => set({ inspectorTiming: t }),
+  postSweepReturn: null,
+  setPostSweepReturn: (p) => set({ postSweepReturn: p }),
+  doubleSweepInfo: null,
+  setDoubleSweepInfo: (d) => set({ doubleSweepInfo: d }),
 
   aspSchedules: [],
   setAspSchedules: (s) => set({ aspSchedules: s }),
