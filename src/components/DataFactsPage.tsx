@@ -187,27 +187,27 @@ export default function DataFactsPage() {
             The Aggregate Picture
           </Heading>
           <Text fontSize="sm" color="gray.700" lineHeight="tall" mb={4}>
-            Across 4,136 verified single-block segments where GPS matching is proven to work,
-            14.8% of ASP tickets were issued on days when zero sweeper GPS was detected for
+            Across 6,446 verified single-block segments where GPS matching is proven to work,
+            15.1% of ASP tickets were issued on days when zero sweeper GPS was detected for
             that block. The no-sweep rate is consistent across all four boroughs, ranging from
-            12.8% in Manhattan to 18.8% in the Bronx.
+            13.5% in Queens to 18.7% in the Bronx.
           </Text>
           <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Bronx</Text>
-              <Text fontSize="xs" color="gray.600">18.8% no-sweep rate</Text>
-            </Box>
-            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
-              <Text fontSize="lg" fontWeight="bold" color="gray.800">Queens</Text>
-              <Text fontSize="xs" color="gray.600">13.8% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">18.7% no-sweep rate</Text>
             </Box>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Brooklyn</Text>
-              <Text fontSize="xs" color="gray.600">15.9% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">15.5% no-sweep rate</Text>
             </Box>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Manhattan</Text>
-              <Text fontSize="xs" color="gray.600">12.8% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">14.9% no-sweep rate</Text>
+            </Box>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Queens</Text>
+              <Text fontSize="xs" color="gray.600">13.5% no-sweep rate</Text>
             </Box>
           </SimpleGrid>
           <Box
