@@ -328,7 +328,7 @@ function AppContent() {
   const isMobile = useBreakpointValue({ base: true, md: false });
 
   return (
-    <Flex h="100vh" direction="column">
+    <Flex h="100%" direction="column">
       <Header />
       <Flex flex={1} overflow="hidden" position="relative">
         {!isMobile && <DesktopSidebar />}

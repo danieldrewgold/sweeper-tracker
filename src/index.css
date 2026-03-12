@@ -8,4 +8,14 @@ html, body, #root {
   height: 100%;
   width: 100%;
   overflow: hidden;
+  overscroll-behavior: none; /* prevent pull-to-refresh / bounce */
+  position: fixed; /* lock the viewport on mobile */
+  inset: 0;
+}
+
+/* Use dynamic viewport height on mobile (respects browser chrome).
+   dvh comes AFTER vh so it overrides when supported. */
+#root {
+  height: 100vh;
+  height: 100dvh;
 }
