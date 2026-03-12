@@ -234,15 +234,21 @@ function MobilePanel() {
     const maxOffset = getCollapsedOffset();
     const velocity = d.velocity; // px/ms; positive = moving down
 
-    // Velocity-based snap: a quick flick overrides position
-    const FLICK_THRESHOLD = 0.4; // px/ms
+    // Flick → snap to endpoint. Otherwise stay where the finger lifted.
+    const FLICK_THRESHOLD = 0.5; // px/ms
     if (velocity > FLICK_THRESHOLD) {
       snapTo(false); // flick down → collapse
     } else if (velocity < -FLICK_THRESHOLD) {
       snapTo(true); // flick up → expand
     } else {
-      // Position-based: snap to nearest
-      snapTo(finalY < maxOffset / 2);
+      // Clamp to valid range and stay in place
+      const clamped = Math.max(0, Math.min(maxOffset, finalY));
+      panel.style.transition = 'transform 0.15s ease-out'; // settle rubber-band
+      panel.style.transform = `translateY(${clamped}px)`;
+      // Enable scroll only when fully (or nearly fully) open
+      const isNearOpen = clamped < 30;
+      expandedRef.current = isNearOpen;
+      setExpanded(isNearOpen);
     }
   }, [getCollapsedOffset, snapTo]);
 
