@@ -323,8 +323,8 @@ export default function PredictionCard() {
           </>
         )}
 
-        {/* Find parking — nearest swept street */}
-        {nearestSwept && !wasSwept && (
+        {/* Find parking — nearest swept street (only during weekday sweep hours) */}
+        {nearestSwept && !wasSwept && !isWeekend && nowMinutes < 17 * 60 && (
           <Box bg="blue.50" px={3} py={2} borderRadius="md">
             <Text fontSize="xs" color="blue.700" mb={2}>
               <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
