@@ -65,15 +65,19 @@ export default function PredictionCard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Find nearest swept street for "find parking" navigation
+  // Find nearest swept street where inspector is likely done
   // Must be above the early return to satisfy Rules of Hooks
   const nearestSwept = useMemo(() => {
     if (!userPhysicalId || !userLatLng || realtimeSweepStatus.size === 0) return null;
+    const now = Date.now();
+    const INSPECTOR_BUFFER_MS = 30 * 60 * 1000; // 30 min after sweep → inspector has likely passed
     let bestDist = Infinity;
     let bestCenter: [number, number] | null = null;
     let bestName = '';
     for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
       if (!visitTime || pid === userPhysicalId) continue; // skip user's own block
+      // Only consider blocks swept 30+ min ago so inspector has had time to pass
+      if (now - visitTime.getTime() < INSPECTOR_BUFFER_MS) continue;
       const seg = segments.get(pid);
       if (!seg) continue;
       const center = getSegmentCenter(seg);
@@ -328,7 +332,7 @@ export default function PredictionCard() {
           <Box bg="blue.50" px={3} py={2} borderRadius="md">
             <Text fontSize="xs" color="blue.700" mb={2}>
               <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
-              {' '}was just swept ({nearestSwept.distMeters < 1000 ? `${nearestSwept.distMeters}m away` : `${(nearestSwept.distMeters / 1000).toFixed(1)}km away`}) — spots may be open
+              {' '}is swept & clear ({nearestSwept.distMeters < 1000 ? `${nearestSwept.distMeters}m away` : `${(nearestSwept.distMeters / 1000).toFixed(1)}km away`}) — safe to park
             </Text>
             <HStack spacing={2}>
               <Button
