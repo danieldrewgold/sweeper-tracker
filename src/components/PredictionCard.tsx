@@ -4,7 +4,7 @@ import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon, Exte
 import { useSweepStore } from '../store';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 import { getSegmentCenter, haversine } from '../utils/geo';
-import { getInspectorQ75Sync } from '../services/sweepData';
+import { getInspectorQ75Sync, getPostSweepReturnSync } from '../services/sweepData';
 
 /** Tappable info icon that toggles an explanation underneath */
 function InfoTip({ detail }: { detail: string }) {
@@ -76,7 +76,7 @@ export default function PredictionCard() {
     const FALLBACK_BUFFER_MS = 30 * 60 * 1000; // 30 min fallback if no inspector data
 
     // Collect all candidates that are swept AND inspector-cleared
-    type Candidate = { center: [number, number]; name: string; dist: number; sweptAt: number };
+    type Candidate = { center: [number, number]; name: string; dist: number; sweptAt: number; returnsAfter: boolean };
     const candidates: Candidate[] = [];
 
     for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
@@ -97,19 +97,27 @@ export default function PredictionCard() {
         if (now - visitTime.getTime() < FALLBACK_BUFFER_MS) continue;
       }
 
+      // Check if inspector tends to return after sweep on this street
+      const afterRate = streetName && boro ? getPostSweepReturnSync(streetName, boro) : null;
+      const returnsAfter = afterRate !== null && afterRate >= 20;
+
       const center = getSegmentCenter(seg);
       if (center[0] === 0 && center[1] === 0) continue;
       const dist = haversine(userLatLng, center);
       if (dist > 2000) continue; // skip if >2km away
-      candidates.push({ center, name: streetName, dist, sweptAt: visitTime.getTime() });
+      candidates.push({ center, name: streetName, dist, sweptAt: visitTime.getTime(), returnsAfter });
     }
 
     if (candidates.length === 0) return null;
 
-    // Sort: most recently swept first (freshest spots), then nearest as tiebreaker
-    candidates.sort((a, b) => (b.sweptAt - a.sweptAt) || (a.dist - b.dist));
+    // Sort: safe streets first (no inspector return), then most recently swept, then nearest
+    candidates.sort((a, b) =>
+      (a.returnsAfter === b.returnsAfter ? 0 : a.returnsAfter ? 1 : -1)
+      || (b.sweptAt - a.sweptAt)
+      || (a.dist - b.dist)
+    );
     const best = candidates[0];
-    return { center: best.center, name: best.name, distMeters: Math.round(best.dist) };
+    return { center: best.center, name: best.name, distMeters: Math.round(best.dist), returnsAfter: best.returnsAfter };
   }, [userLatLng, userPhysicalId, realtimeSweepStatus, segments]);
 
   if (!userPhysicalId) return null;
@@ -349,10 +357,15 @@ export default function PredictionCard() {
         {/* Find parking — nearest swept street (only during weekday sweep hours) */}
         {nearestSwept && !wasSwept && !isWeekend && nowMinutes < 17 * 60 && (
           <Box bg="blue.50" px={3} py={2} borderRadius="md">
-            <Text fontSize="xs" color="blue.700" mb={2}>
+            <Text fontSize="xs" color="blue.700" mb={1}>
               <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
               {' '}is swept & clear ({nearestSwept.distMeters < 1000 ? `${nearestSwept.distMeters}m away` : `${(nearestSwept.distMeters / 1000).toFixed(1)}km away`}) — safe to park
             </Text>
+            {nearestSwept.returnsAfter && (
+              <Text fontSize="2xs" color="orange.600" mb={1}>
+                ⚠ Inspector sometimes returns after sweep on this street
+              </Text>
+            )}
             <HStack spacing={2}>
               <Button
                 as={Link}

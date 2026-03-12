@@ -80,6 +80,15 @@ export function getInspectorQ75Sync(streetName: string, borough: string): number
   return entry ? entry[2] : null; // index 2 = q75Minutes
 }
 
+/** Synchronous post-sweep return lookup — returns afterRate (%) or null.
+ *  High afterRate = inspector often comes back after sweeper passes. */
+export function getPostSweepReturnSync(streetName: string, borough: string): number | null {
+  if (!sweepData) return null;
+  const key = `${normalizeStreet(streetName)}|${borough}`;
+  const entry = sweepData.p[key];
+  return entry ? entry[0] : null; // index 0 = afterRate
+}
+
 export async function getPostSweepReturn(
   streetName: string,
   borough: string,
