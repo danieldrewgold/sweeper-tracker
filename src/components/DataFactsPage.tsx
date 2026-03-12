@@ -160,6 +160,9 @@ export default function DataFactsPage() {
               <Text fontSize="sm" color="blue.700" lineHeight="tall">
                 {META.methodology}
               </Text>
+              <Text fontSize="sm" color="blue.700" lineHeight="tall" mt={2} fontWeight="500">
+                Data cleaning: {META.dataCleaning}
+              </Text>
               <Text fontSize="xs" color="blue.600" mt={2}>
                 Source: {META.source}
               </Text>
@@ -334,7 +337,7 @@ export default function DataFactsPage() {
                       <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.noSweep.toLocaleString()}</Td>
                       <Td isNumeric>
                         <Badge
-                          colorScheme={row.noSweepRate >= 25 ? 'red' : row.noSweepRate >= 18 ? 'orange' : 'green'}
+                          colorScheme={row.noSweepRate >= 18 ? 'red' : row.noSweepRate >= 12 ? 'orange' : 'green'}
                           fontSize="xs"
                           px={2}
                           borderRadius="md"
