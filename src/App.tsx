@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Box, Flex, VStack, Text, Alert, AlertIcon, IconButton, useBreakpointValue } from '@chakra-ui/react';
-import { ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Box, Flex, VStack, Text, Alert, AlertIcon, useBreakpointValue } from '@chakra-ui/react';
 import './App.css';
 import Header from './components/Header';
 import SweepMap from './components/SweepMap';
@@ -95,6 +94,10 @@ function MobilePanel() {
   const isLoading = useSweepStore((s) => s.isLoading);
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
   const [expanded, setExpanded] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0); // positive = dragging down (closing)
+  const touchStartY = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-expand when a block is selected
   const prevBlockRef = useRef<string | null>(null);
@@ -105,6 +108,49 @@ function MobilePanel() {
     prevBlockRef.current = userPhysicalId;
   }, [userPhysicalId]);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    setDragging(true);
+    setDragOffset(0);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!dragging) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (expanded) {
+      // When expanded: only allow dragging down (to collapse), and only if scrolled to top
+      const scrollTop = scrollRef.current?.scrollTop ?? 0;
+      if (scrollTop > 0) return; // let normal scroll happen
+      if (delta > 0) {
+        e.preventDefault();
+        setDragOffset(delta);
+      }
+    } else {
+      // When collapsed: only allow dragging up (to expand)
+      if (delta < 0) {
+        e.preventDefault();
+        setDragOffset(delta);
+      }
+    }
+  }, [dragging, expanded]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!dragging) return;
+    setDragging(false);
+    const threshold = 60; // px to trigger snap
+    if (expanded && dragOffset > threshold) {
+      setExpanded(false);
+    } else if (!expanded && dragOffset < -threshold) {
+      setExpanded(true);
+    }
+    setDragOffset(0);
+  }, [dragging, expanded, dragOffset]);
+
+  // Compute transform for drag feedback
+  const dragTransform = dragging && dragOffset !== 0
+    ? `translateY(${dragOffset}px)`
+    : undefined;
+
   return (
     <Box
       position="absolute"
@@ -113,59 +159,81 @@ function MobilePanel() {
       right={0}
       bg="gray.50"
       borderTopRadius="xl"
-      boxShadow="0 -2px 10px rgba(0,0,0,0.15)"
+      boxShadow="0 -4px 16px rgba(0,0,0,0.18)"
       zIndex={1000}
-      maxH={expanded ? '70vh' : 'auto'}
-      overflowY={expanded ? 'auto' : 'hidden'}
-      transition="max-height 0.3s ease"
+      maxH={expanded ? '75vh' : 'auto'}
+      transition={dragging ? 'none' : 'max-height 0.3s ease, transform 0.3s ease'}
+      transform={dragTransform}
+      display="flex"
+      flexDirection="column"
     >
-      {/* Drag handle + toggle */}
-      <Flex justify="center" pt={1} pb={0}>
-        <IconButton
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-          icon={expanded ? <ChevronDownIcon /> : <ChevronUpIcon />}
-          size="xs"
-          variant="ghost"
-          onClick={() => setExpanded(!expanded)}
+      {/* Drag handle — swipe target */}
+      <Box
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={() => setExpanded(!expanded)}
+        cursor="pointer"
+        py={2}
+        flexShrink={0}
+      >
+        <Box
+          w="36px"
+          h="4px"
+          bg="gray.300"
+          borderRadius="full"
+          mx="auto"
         />
-      </Flex>
+      </Box>
 
-      <VStack align="stretch" spacing={2} px={3} pb={3}>
-        <AddressSearch onSelect={selectFromGeocode} />
+      {/* Scrollable content */}
+      <Box
+        ref={scrollRef}
+        overflowY={expanded ? 'auto' : 'hidden'}
+        flex={1}
+        minH={0}
+        sx={{
+          WebkitOverflowScrolling: 'touch',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
+        <VStack align="stretch" spacing={2} px={3} pb={3}>
+          <AddressSearch onSelect={selectFromGeocode} />
 
-        {error && (
-          <Alert status="error" borderRadius="md" fontSize="sm">
-            <AlertIcon />
-            {error}
-          </Alert>
-        )}
+          {error && (
+            <Alert status="error" borderRadius="md" fontSize="sm">
+              <AlertIcon />
+              {error}
+            </Alert>
+          )}
 
-        {isLoading && (
-          <Text fontSize="sm" color="gray.500" textAlign="center">
-            Loading block data...
-          </Text>
-        )}
+          {isLoading && (
+            <Text fontSize="sm" color="gray.500" textAlign="center">
+              Loading block data...
+            </Text>
+          )}
 
-        {expanded && (
-          <>
-            <PredictionCard />
-            <AspScheduleCard />
-            <BlockStatus />
-          </>
-        )}
+          {expanded && (
+            <>
+              <PredictionCard />
+              <AspScheduleCard />
+              <BlockStatus />
+            </>
+          )}
 
-        {!expanded && userPhysicalId && (
-          <Text fontSize="xs" color="green.600" textAlign="center" pb={1} cursor="pointer" onClick={() => setExpanded(true)}>
-            Tap to see block details
-          </Text>
-        )}
+          {!expanded && userPhysicalId && (
+            <Text fontSize="xs" color="green.600" textAlign="center" pb={1}>
+              Swipe up for block details
+            </Text>
+          )}
 
-        {!userPhysicalId && !isLoading && (
-          <Text fontSize="xs" color="gray.500" textAlign="center" pb={1}>
-            🧹 Enter an address to get started
-          </Text>
-        )}
-      </VStack>
+          {!userPhysicalId && !isLoading && (
+            <Text fontSize="xs" color="gray.500" textAlign="center" pb={1}>
+              🧹 Enter an address to get started
+            </Text>
+          )}
+        </VStack>
+      </Box>
     </Box>
   );
 }
