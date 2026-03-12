@@ -1,5 +1,6 @@
 import { Box, Heading, Text, HStack, Link, Icon } from '@chakra-ui/react';
 import { useSweepStore } from '../store';
+import { useRoute } from '../hooks/useRoute';
 
 function BroomIcon(props: React.ComponentProps<typeof Icon>) {
   return (
@@ -21,9 +22,11 @@ function BroomIcon(props: React.ComponentProps<typeof Icon>) {
 
 export default function Header() {
   const clearUserBlock = useSweepStore((s) => s.clearUserBlock);
+  const [route, navigate] = useRoute();
 
   const handleLogoClick = () => {
     clearUserBlock();
+    navigate('map');
     // Remove address param from URL
     const url = new URL(window.location.href);
     if (url.searchParams.has('address')) {
@@ -45,6 +48,21 @@ export default function Header() {
           </Heading>
         </HStack>
         <HStack spacing={3}>
+          <Box
+            as="button"
+            color={route === 'data' ? 'orange.300' : 'gray.400'}
+            border="1px"
+            borderColor={route === 'data' ? 'orange.300' : 'gray.600'}
+            px={3}
+            py={1}
+            borderRadius="full"
+            fontSize="xs"
+            fontWeight="medium"
+            _hover={{ color: 'orange.300', borderColor: 'orange.300' }}
+            onClick={() => navigate('data')}
+          >
+            Data & Facts
+          </Box>
           <Link
             href="https://buymeacoffee.com/danielgold"
             isExternal

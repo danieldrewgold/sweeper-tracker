@@ -3,10 +3,10 @@
   "configurations": [
     {
       "name": "sweeper-dev",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5175"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--port", "5175"],
       "port": 5175,
-      "cwd": "C:\\Users\\Daniel\\Documents\\sweeper-tracker"
+      "cwd": "C:/Users/Daniel/Documents/sweeper-tracker"
     }
   ]
 }
