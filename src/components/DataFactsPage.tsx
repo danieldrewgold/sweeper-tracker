@@ -16,14 +16,13 @@ import {
   Td,
   Button,
   Divider,
-  Icon,
   Collapse,
   Input,
   InputGroup,
   InputLeftElement,
 } from '@chakra-ui/react';
 import { TriangleUpIcon, TriangleDownIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon } from '@chakra-ui/icons';
-import { HEADLINE_STATS, CASE_STUDIES, PRECINCT_DATA, META, type PrecinctRow } from '../data/dataFacts';
+import { HEADLINE_STATS, CASE_STUDIES, PRECINCT_DATA, META } from '../data/dataFacts';
 import { useRoute } from '../hooks/useRoute';
 
 type SortField = 'precinct' | 'total' | 'noSweep' | 'noSweepRate';
@@ -38,17 +37,6 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
   );
 }
 
-function rateColor(rate: number): string {
-  if (rate >= 25) return 'red.600';
-  if (rate >= 18) return 'orange.500';
-  return 'green.600';
-}
-
-function rateBg(rate: number): string {
-  if (rate >= 25) return 'red.50';
-  if (rate >= 18) return 'orange.50';
-  return 'green.50';
-}
 
 // Top 10 worst precincts by no-sweep rate (precomputed, stable set)
 const TOP_10_WORST = new Set(

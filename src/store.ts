@@ -153,7 +153,7 @@ export const useSweepStore = create<SweepState>((set) => ({
         }
         if (existing === null && time !== null) { hasChange = true; break; }
         if (existing !== null && time === null) { hasChange = true; break; }
-        if (existing !== null && time !== null && existing.getTime() !== time.getTime()) {
+        if (existing !== null && existing !== undefined && time !== null && existing.getTime() !== time.getTime()) {
           hasChange = true; break;
         }
       }
