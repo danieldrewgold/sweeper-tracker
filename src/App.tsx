@@ -88,71 +88,167 @@ function DesktopSidebar() {
   );
 }
 
+/**
+ * Mobile bottom sheet — GPU-composited drag via direct DOM manipulation.
+ * During a drag gesture, ZERO React re-renders happen. All position updates
+ * go straight to `element.style.transform` for 60fps+ smoothness.
+ * The panel uses translateY to slide: 0 = fully open, collapsedOffset = peek.
+ */
 function MobilePanel() {
   const { selectFromGeocode } = useUserBlock();
   const error = useSweepStore((s) => s.error);
   const isLoading = useSweepStore((s) => s.isLoading);
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
-  const [expanded, setExpanded] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState(0); // positive = dragging down (closing)
-  const touchStartY = useRef(0);
+
+  const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const expandedRef = useRef(false);
+  const [expanded, setExpanded] = useState(false); // only for overflow toggle
+
+  const PEEK_HEIGHT = 110; // px visible when collapsed (handle + search + hint)
+
+  // All drag tracking lives in refs — no state = no re-renders during gesture
+  const drag = useRef({
+    active: false,
+    startY: 0,
+    startOffset: 0, // translateY at drag start
+    lastY: 0,
+    lastTime: 0,
+    velocity: 0, // px/ms
+  });
+
+  /** How far down to push panel when collapsed */
+  const getCollapsedOffset = useCallback(() => {
+    const panel = panelRef.current;
+    if (!panel) return 0;
+    return Math.max(0, panel.offsetHeight - PEEK_HEIGHT);
+  }, []);
+
+  /** Animate to open or closed position */
+  const snapTo = useCallback((open: boolean) => {
+    expandedRef.current = open;
+    setExpanded(open);
+    const panel = panelRef.current;
+    if (!panel) return;
+    panel.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+    panel.style.transform = open
+      ? 'translateY(0)'
+      : `translateY(${getCollapsedOffset()}px)`;
+    if (!open && scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [getCollapsedOffset]);
 
   // Auto-expand when a block is selected
   const prevBlockRef = useRef<string | null>(null);
   useEffect(() => {
     if (userPhysicalId && userPhysicalId !== prevBlockRef.current) {
-      setExpanded(true);
+      snapTo(true);
     }
     prevBlockRef.current = userPhysicalId;
-  }, [userPhysicalId]);
+  }, [userPhysicalId, snapTo]);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    setDragging(true);
-    setDragOffset(0);
+  // Set initial collapsed position after first paint
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      panel.style.transition = 'none';
+      panel.style.transform = `translateY(${getCollapsedOffset()}px)`;
+    });
+  }, [getCollapsedOffset]);
+
+  // Keep collapsed offset in sync when panel content changes size
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const observer = new ResizeObserver(() => {
+      if (!expandedRef.current && !drag.current.active) {
+        panel.style.transition = 'none';
+        panel.style.transform = `translateY(${getCollapsedOffset()}px)`;
+      }
+    });
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [getCollapsedOffset]);
+
+  // ── Touch handlers — direct DOM, no setState ──
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    // Read current translateY from the live computed style
+    const matrix = new DOMMatrix(getComputedStyle(panel).transform);
+    const now = e.touches[0].clientY;
+    drag.current = {
+      active: true,
+      startY: now,
+      startOffset: matrix.m42,
+      lastY: now,
+      lastTime: Date.now(),
+      velocity: 0,
+    };
+    panel.style.transition = 'none'; // kill CSS transition during drag
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!dragging) return;
-    const delta = e.touches[0].clientY - touchStartY.current;
-    if (expanded) {
-      // When expanded: only allow dragging down (to collapse), and only if scrolled to top
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    const d = drag.current;
+    if (!d.active) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    // If expanded and user has scrolled down in the content, let scroll handle it
+    if (expandedRef.current) {
       const scrollTop = scrollRef.current?.scrollTop ?? 0;
-      if (scrollTop > 0) return; // let normal scroll happen
-      if (delta > 0) {
-        e.preventDefault();
-        setDragOffset(delta);
-      }
+      if (scrollTop > 1) return;
+    }
+
+    const touchY = e.touches[0].clientY;
+    const now = Date.now();
+    const dt = now - d.lastTime;
+    if (dt > 0) d.velocity = (touchY - d.lastY) / dt; // px/ms
+    d.lastY = touchY;
+    d.lastTime = now;
+
+    const deltaY = touchY - d.startY;
+    const maxOffset = getCollapsedOffset();
+    let newOffset = d.startOffset + deltaY;
+
+    // Rubber-band at edges
+    if (newOffset < 0) newOffset *= 0.25;
+    if (newOffset > maxOffset) {
+      newOffset = maxOffset + (newOffset - maxOffset) * 0.25;
+    }
+
+    panel.style.transform = `translateY(${newOffset}px)`;
+    e.preventDefault(); // prevent map panning
+  }, [getCollapsedOffset]);
+
+  const onTouchEnd = useCallback(() => {
+    const d = drag.current;
+    if (!d.active) return;
+    d.active = false;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+    const matrix = new DOMMatrix(getComputedStyle(panel).transform);
+    const finalY = matrix.m42;
+    const maxOffset = getCollapsedOffset();
+    const velocity = d.velocity; // px/ms; positive = moving down
+
+    // Velocity-based snap: a quick flick overrides position
+    const FLICK_THRESHOLD = 0.4; // px/ms
+    if (velocity > FLICK_THRESHOLD) {
+      snapTo(false); // flick down → collapse
+    } else if (velocity < -FLICK_THRESHOLD) {
+      snapTo(true); // flick up → expand
     } else {
-      // When collapsed: only allow dragging up (to expand)
-      if (delta < 0) {
-        e.preventDefault();
-        setDragOffset(delta);
-      }
+      // Position-based: snap to nearest
+      snapTo(finalY < maxOffset / 2);
     }
-  }, [dragging, expanded]);
-
-  const handleTouchEnd = useCallback(() => {
-    if (!dragging) return;
-    setDragging(false);
-    const threshold = 60; // px to trigger snap
-    if (expanded && dragOffset > threshold) {
-      setExpanded(false);
-    } else if (!expanded && dragOffset < -threshold) {
-      setExpanded(true);
-    }
-    setDragOffset(0);
-  }, [dragging, expanded, dragOffset]);
-
-  // Compute transform for drag feedback
-  const dragTransform = dragging && dragOffset !== 0
-    ? `translateY(${dragOffset}px)`
-    : undefined;
+  }, [getCollapsedOffset, snapTo]);
 
   return (
     <Box
+      ref={panelRef}
       position="absolute"
       bottom={0}
       left={0}
@@ -161,32 +257,26 @@ function MobilePanel() {
       borderTopRadius="xl"
       boxShadow="0 -4px 16px rgba(0,0,0,0.18)"
       zIndex={1000}
-      maxH={expanded ? '75vh' : 'auto'}
-      transition={dragging ? 'none' : 'max-height 0.3s ease, transform 0.3s ease'}
-      transform={dragTransform}
+      maxH="75vh"
       display="flex"
       flexDirection="column"
+      willChange="transform"
     >
-      {/* Drag handle — swipe target */}
+      {/* ── Drag handle ── */}
       <Box
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onClick={() => setExpanded(!expanded)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onClick={() => snapTo(!expandedRef.current)}
         cursor="pointer"
-        py={2}
+        py={3}
         flexShrink={0}
+        sx={{ touchAction: 'none' }}
       >
-        <Box
-          w="36px"
-          h="4px"
-          bg="gray.300"
-          borderRadius="full"
-          mx="auto"
-        />
+        <Box w="36px" h="4px" bg="gray.300" borderRadius="full" mx="auto" />
       </Box>
 
-      {/* Scrollable content */}
+      {/* ── Scrollable content ── */}
       <Box
         ref={scrollRef}
         overflowY={expanded ? 'auto' : 'hidden'}
@@ -213,19 +303,10 @@ function MobilePanel() {
             </Text>
           )}
 
-          {expanded && (
-            <>
-              <PredictionCard />
-              <AspScheduleCard />
-              <BlockStatus />
-            </>
-          )}
-
-          {!expanded && userPhysicalId && (
-            <Text fontSize="xs" color="green.600" textAlign="center" pb={1}>
-              Swipe up for block details
-            </Text>
-          )}
+          {/* Always rendered so panel height is stable for translateY math */}
+          <PredictionCard />
+          <AspScheduleCard />
+          <BlockStatus />
 
           {!userPhysicalId && !isLoading && (
             <Text fontSize="xs" color="gray.500" textAlign="center" pb={1}>
