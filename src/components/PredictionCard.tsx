@@ -350,14 +350,25 @@ export default function PredictionCard() {
               </Box>
             )}
             {showCountdown && minutesUntilExpected !== null && minutesUntilExpected <= 0 && (
-              <Box bg="yellow.50" px={3} py={2} borderRadius="md">
-                <Text fontSize="sm" fontWeight="bold" color="yellow.700">
-                  Sweeper expected any moment
-                </Text>
-                <Text fontSize="xs" color="yellow.600">
-                  Usually arrives around {formatMinutes(historicalPattern.medianTimeMinutes)}
-                </Text>
-              </Box>
+              aspEndMinutes !== null && nowMinutes > aspEndMinutes + 30 ? (
+                <Box bg="red.50" px={3} py={2} borderRadius="md">
+                  <Text fontSize="sm" fontWeight="bold" color="red.700">
+                    Sweeper didn't come today
+                  </Text>
+                  <Text fontSize="xs" color="red.500">
+                    ASP window ended at {formatMinutes(aspEndMinutes)} — no sweep detected
+                  </Text>
+                </Box>
+              ) : (
+                <Box bg="yellow.50" px={3} py={2} borderRadius="md">
+                  <Text fontSize="sm" fontWeight="bold" color="yellow.700">
+                    Sweeper expected any moment
+                  </Text>
+                  <Text fontSize="xs" color="yellow.600">
+                    Usually arrives around {formatMinutes(historicalPattern.medianTimeMinutes)}
+                  </Text>
+                </Box>
+              )
             )}
           </>
         )}
