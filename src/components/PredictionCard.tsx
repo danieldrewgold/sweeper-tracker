@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse, IconButton } from '@chakra-ui/react';
-import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon } from '@chakra-ui/icons';
+import { useEffect, useState, useMemo } from 'react';
+import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse, IconButton, Button, Link } from '@chakra-ui/react';
+import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import { useSweepStore } from '../store';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
+import { getSegmentCenter, haversine } from '../utils/geo';
 
 /** Tappable info icon that toggles an explanation underneath */
 function InfoTip({ detail }: { detail: string }) {
@@ -54,6 +55,8 @@ export default function PredictionCard() {
   const setAlertsEnabled = useSweepStore((s) => s.setAlertsEnabled);
   // Must call ALL hooks before any conditional returns (Rules of Hooks)
   const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
+  const segments = useSweepStore((s) => s.segments);
+  const userLatLng = useSweepStore((s) => s.userLatLng);
 
   // Tick every minute to keep countdown fresh
   const [, setTick] = useState(0);
@@ -125,6 +128,29 @@ export default function PredictionCard() {
     : !todaySchedule ? 'no_asp'
     : todaySkipRate >= 95 ? 'asp_but_rare'
     : 'normal';
+
+  // Find nearest swept street for "find parking" navigation
+  const nearestSwept = useMemo(() => {
+    if (!userLatLng || realtimeSweepStatus.size === 0) return null;
+    let bestDist = Infinity;
+    let bestCenter: [number, number] | null = null;
+    let bestName = '';
+    for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
+      if (!visitTime || pid === userPhysicalId) continue; // skip user's own block
+      const seg = segments.get(pid);
+      if (!seg) continue;
+      const center = getSegmentCenter(seg);
+      if (center[0] === 0 && center[1] === 0) continue;
+      const dist = haversine(userLatLng, center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCenter = center;
+        bestName = seg.full_street_name || seg.stname_label || '';
+      }
+    }
+    if (!bestCenter || bestDist > 2000) return null; // don't suggest if >2km away
+    return { center: bestCenter, name: bestName, distMeters: Math.round(bestDist) };
+  }, [userLatLng, userPhysicalId, realtimeSweepStatus, segments]);
 
   // Find next scheduled sweep day
   const nextSweepDay = (() => {
@@ -294,6 +320,42 @@ export default function PredictionCard() {
               </Box>
             )}
           </>
+        )}
+
+        {/* Find parking — nearest swept street */}
+        {nearestSwept && !isSafeToPark && sweepDayStatus === 'normal' && (
+          <Box bg="blue.50" px={3} py={2} borderRadius="md">
+            <Text fontSize="xs" color="blue.700" mb={2}>
+              <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
+              {' '}was just swept ({nearestSwept.distMeters < 1000 ? `${nearestSwept.distMeters}m away` : `${(nearestSwept.distMeters / 1000).toFixed(1)}km away`}) — spots may be open
+            </Text>
+            <HStack spacing={2}>
+              <Button
+                as={Link}
+                href={`https://www.google.com/maps/dir/?api=1&destination=${nearestSwept.center[0]},${nearestSwept.center[1]}&travelmode=driving`}
+                isExternal
+                size="xs"
+                colorScheme="blue"
+                variant="outline"
+                rightIcon={<ExternalLinkIcon />}
+                _hover={{ textDecoration: 'none', bg: 'blue.100' }}
+              >
+                Google Maps
+              </Button>
+              <Button
+                as={Link}
+                href={`https://waze.com/ul?ll=${nearestSwept.center[0]},${nearestSwept.center[1]}&navigate=yes`}
+                isExternal
+                size="xs"
+                colorScheme="blue"
+                variant="outline"
+                rightIcon={<ExternalLinkIcon />}
+                _hover={{ textDecoration: 'none', bg: 'blue.100' }}
+              >
+                Waze
+              </Button>
+            </HStack>
+          </Box>
         )}
 
         {/* Historical pattern */}
