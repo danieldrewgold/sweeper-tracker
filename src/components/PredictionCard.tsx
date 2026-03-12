@@ -1,8 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Box, Text, VStack, Badge, Divider, HStack, Icon } from '@chakra-ui/react';
-import { CheckCircleIcon, TimeIcon, WarningIcon } from '@chakra-ui/icons';
+import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse } from '@chakra-ui/react';
+import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons';
 import { useSweepStore } from '../store';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
+
+/** Tappable info icon that toggles an explanation underneath */
+function InfoTip({ detail }: { detail: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <>
+      <Icon
+        as={InfoOutlineIcon}
+        boxSize="12px"
+        color={show ? 'blue.400' : 'gray.300'}
+        cursor="pointer"
+        ml={1}
+        onClick={() => setShow(!show)}
+        _hover={{ color: 'blue.400' }}
+        verticalAlign="text-top"
+      />
+      <Collapse in={show} animateOpacity>
+        <Text fontSize="2xs" color="gray.400" mt={1} lineHeight="short">
+          {detail}
+        </Text>
+      </Collapse>
+    </>
+  );
+}
 
 /** Format a countdown in minutes to a readable string */
 function formatCountdown(totalMinutes: number): string {
@@ -119,6 +143,7 @@ export default function PredictionCard() {
               <Box bg="green.50" px={3} py={2} borderRadius="md" borderLeft="3px solid" borderColor="green.400">
                 <Text fontSize="sm" fontWeight="bold" color="green.700">
                   Safe to park — sweep and enforcement are done
+                  <InfoTip detail="The sweeper has passed and the typical inspector enforcement window is over for today. Green streets on the map were also already swept — safe to park there too." />
                 </Text>
               </Box>
             )}
@@ -206,6 +231,7 @@ export default function PredictionCard() {
               <Text fontSize="xs" color="blue.700" fontWeight="medium">
                 Usually swept around {historicalPattern.medianTimeFormatted} on{' '}
                 {historicalPattern.dayName}s
+                <InfoTip detail={`Based on ${historicalPattern.sampleCount} GPS-tracked sweeper passes on this block. The time shown is the median arrival, ±${historicalPattern.rangeMinutes} min covers the typical range.`} />
               </Text>
               <Text fontSize="xs" color="gray.500">
                 Based on {historicalPattern.sampleCount} observation{historicalPattern.sampleCount !== 1 ? 's' : ''} (
@@ -220,7 +246,7 @@ export default function PredictionCard() {
           <>
             <Divider />
             <Box px={1}>
-              <HStack spacing={2} mb={1}>
+              <HStack spacing={2} mb={1} flexWrap="wrap">
                 <Badge
                   colorScheme={sweepReliability.skipRate <= 10 ? 'green' : sweepReliability.skipRate <= 50 ? 'yellow' : 'red'}
                   fontSize="xs"
@@ -229,6 +255,7 @@ export default function PredictionCard() {
                 </Badge>
                 <Text fontSize="xs" color="gray.500">
                   ~{Math.round(100 - sweepReliability.skipRate)}% of ASP days ({sweepReliability.totalDays} days)
+                  <InfoTip detail={`Tracked over ${sweepReliability.totalDays} scheduled ASP days using NYC sweeper GPS data (Jun 2025–Jan 2026). Shows what % of days the sweeper actually showed up on this block.`} />
                 </Text>
               </HStack>
               {sweepReliability.totalTickets > 0 && sweepReliability.skipRate > 30 && (
@@ -272,6 +299,7 @@ export default function PredictionCard() {
               <Box bg="orange.50" px={3} py={2} borderRadius="md">
                 <Text fontSize="xs" color="orange.700">
                   ASP is posted for {missedAspDays.map((d) => DAY_NAMES_SHORT[d]).join(', ')} but the sweeper {allMissedAreZero ? 'never' : 'rarely'} comes {missedAspDays.length === 1 ? 'that day' : 'those days'}
+                  <InfoTip detail="ASP signs are posted for these days but NYC sweeper GPS data shows the sweeper was not detected on this block. You can still get ticketed even if the sweeper doesn't show up." />
                 </Text>
               </Box>
             )}
@@ -293,6 +321,7 @@ export default function PredictionCard() {
                     {formatMinutes(inspectorTiming.q25Minutes)} – {formatMinutes(inspectorTiming.q75Minutes)}
                   </Text>
                   <Text as="span" color="gray.400"> ({inspectorTiming.sampleCount} obs)</Text>
+                  <InfoTip detail={`Based on ${inspectorTiming.sampleCount.toLocaleString()} parking ticket timestamps on this street. The range shown covers when 50% of tickets are written (25th–75th percentile).`} />
                 </Text>
               )}
               {postSweepReturn && (
@@ -304,6 +333,7 @@ export default function PredictionCard() {
                   {postSweepReturn.afterRate < 20
                     ? 'Inspector typically does not return after sweep'
                     : 'Inspector may return after the sweeper passes'}
+                  <InfoTip detail={`On ${Math.round(postSweepReturn.afterRate)}% of ${postSweepReturn.ticketDays.toLocaleString()} ticketing days on this street, tickets were issued after the sweeper had already passed.`} />
                 </Text>
               )}
             </Box>
@@ -315,6 +345,7 @@ export default function PredictionCard() {
           <Box px={1}>
             <Text fontSize="xs" color="blue.600">
               This block is sometimes swept twice ({doubleSweepInfo.doubleDays} time{doubleSweepInfo.doubleDays !== 1 ? 's' : ''} last year)
+              <InfoTip detail={`GPS data shows the sweeper passed this block twice on ${doubleSweepInfo.doubleDays} separate days in the past year. This can happen when routes overlap or the sweeper doubles back.`} />
             </Text>
           </Box>
         )}
