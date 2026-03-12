@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import {
   Box,
   Container,
@@ -23,6 +23,7 @@ import {
 } from '@chakra-ui/react';
 import { TriangleUpIcon, TriangleDownIcon, ChevronDownIcon, ChevronUpIcon, SearchIcon } from '@chakra-ui/icons';
 import { HEADLINE_STATS, CASE_STUDIES, PRECINCT_DATA, META } from '../data/dataFacts';
+import { PRECINCT_DETAILS } from '../data/precinctDetails';
 import { useRoute } from '../hooks/useRoute';
 
 type SortField = 'precinct' | 'total' | 'noSweep' | 'noSweepRate';
@@ -49,6 +50,7 @@ export default function DataFactsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [methodologyOpen, setMethodologyOpen] = useState(false);
   const [precinctFilter, setPrecinctFilter] = useState('');
+  const [expandedPrecinct, setExpandedPrecinct] = useState<number | null>(null);
 
   useEffect(() => {
     document.title = 'Data & Facts | SweepTracker NYC';
@@ -310,7 +312,7 @@ export default function DataFactsPage() {
               By Precinct
             </Heading>
             <Text fontSize="sm" color="gray.600">
-              No-sweep rates for all {PRECINCT_DATA.length} precincts. Click a column to sort.
+              No-sweep rates for all {PRECINCT_DATA.length} precincts. Tap a row for details.
               Top 10 worst precincts are highlighted.
             </Text>
           </VStack>
@@ -383,34 +385,84 @@ export default function DataFactsPage() {
               <Tbody>
                 {sortedPrecincts.map((row) => {
                   const isTop10 = TOP_10_WORST.has(row.precinct);
+                  const isExpanded = expandedPrecinct === row.precinct;
+                  const detail = PRECINCT_DETAILS[row.precinct];
                   return (
-                    <Tr
-                      key={row.precinct}
-                      bg={isTop10 ? 'red.50' : undefined}
-                      _hover={{ bg: isTop10 ? 'red.100' : 'gray.50' }}
-                    >
-                      <Td fontWeight={isTop10 ? '800' : '600'} color={isTop10 ? 'red.700' : undefined}>
-                        {row.precinct}
-                      </Td>
-                      <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.total.toLocaleString()}</Td>
-                      <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.noSweep.toLocaleString()}</Td>
-                      <Td isNumeric>
-                        <Badge
-                          colorScheme={row.noSweepRate >= 20 ? 'red' : row.noSweepRate >= 15 ? 'orange' : 'green'}
-                          fontSize="xs"
-                          px={2}
-                          borderRadius="md"
-                        >
-                          {row.noSweepRate.toFixed(1)}%
-                        </Badge>
-                      </Td>
-                    </Tr>
+                    <Fragment key={row.precinct}>
+                      <Tr
+                        bg={isExpanded ? 'orange.50' : isTop10 ? 'red.50' : undefined}
+                        _hover={{ bg: isTop10 ? 'red.100' : 'gray.50' }}
+                        cursor="pointer"
+                        onClick={() => setExpandedPrecinct(isExpanded ? null : row.precinct)}
+                      >
+                        <Td fontWeight={isTop10 ? '800' : '600'} color={isTop10 ? 'red.700' : undefined}>
+                          <HStack spacing={1}>
+                            <Text>{row.precinct}</Text>
+                            {detail && (
+                              <Text fontSize="xs" color="gray.400" fontWeight="normal">
+                                {isExpanded ? '\u25B2' : '\u25BC'}
+                              </Text>
+                            )}
+                          </HStack>
+                        </Td>
+                        <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.total.toLocaleString()}</Td>
+                        <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.noSweep.toLocaleString()}</Td>
+                        <Td isNumeric>
+                          <Badge
+                            colorScheme={row.noSweepRate >= 20 ? 'red' : row.noSweepRate >= 15 ? 'orange' : 'green'}
+                            fontSize="xs"
+                            px={2}
+                            borderRadius="md"
+                          >
+                            {row.noSweepRate.toFixed(1)}%
+                          </Badge>
+                        </Td>
+                      </Tr>
+                      {isExpanded && detail && (
+                        <Tr key={`${row.precinct}-detail`}>
+                          <Td colSpan={4} bg="gray.50" py={3} px={{ base: 3, md: 6 }}>
+                            <VStack align="stretch" spacing={2}>
+                              <HStack spacing={4} flexWrap="wrap">
+                                <Badge colorScheme="blue" fontSize="xs">{detail.borough}</Badge>
+                                <Text fontSize="xs" color="gray.600">
+                                  {detail.segments} verified segments
+                                </Text>
+                                <Text fontSize="xs" color="gray.600">
+                                  ${(row.noSweep * 65).toLocaleString()} in fines on unswept days
+                                </Text>
+                              </HStack>
+                              {detail.worstBlocks.length > 0 && (
+                                <Box>
+                                  <Text fontSize="xs" fontWeight="600" color="gray.700" mb={1}>
+                                    Worst blocks:
+                                  </Text>
+                                  {detail.worstBlocks.map((b, i) => (
+                                    <HStack key={i} spacing={2} fontSize="xs" color="gray.600">
+                                      <Text fontWeight="500" color="gray.700" minW="fit-content">
+                                        {b.street}{b.houses ? ` (${b.houses})` : ''}
+                                      </Text>
+                                      <Badge
+                                        colorScheme={b.skipRate >= 50 ? 'red' : b.skipRate >= 25 ? 'orange' : 'green'}
+                                        fontSize="2xs"
+                                      >
+                                        {b.skipRate}% skip
+                                      </Badge>
+                                      <Text>{b.noSweep} no-sweep / {b.confirmed} confirmed</Text>
+                                    </HStack>
+                                  ))}
+                                </Box>
+                              )}
+                            </VStack>
+                          </Td>
+                        </Tr>
+                      )}
+                    </Fragment>
                   );
                 })}
                 {sortedPrecincts.length === 0 && (
                   <Tr>
                     <Td colSpan={4} textAlign="center" color="gray.500" py={6}>
-                      No precincts matching "{precinctFilter}"
+                      No precincts matching &ldquo;{precinctFilter}&rdquo;
                     </Td>
                   </Tr>
                 )}
