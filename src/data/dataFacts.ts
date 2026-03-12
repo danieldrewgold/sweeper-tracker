@@ -61,16 +61,16 @@ export const CASE_STUDIES: CaseStudy[] = [
     highlight: 'Neighbor blocks swept 95%+ of the time, one block skipped 86%. Same street, same precinct, same sweeper route.',
   },
   {
-    title: 'E 78th St, Manhattan \u2014 Eight Blocks Swept, One Chronically Missed',
-    borough: 'Manhattan',
+    title: 'Clay St, Brooklyn \u2014 One Block Skipped, Next Block Swept',
+    borough: 'Brooklyn',
     description:
-      'East 78th Street has 9 verified blocks in Precinct 19. Eight of them have skip rates between 10\u201313% \u2014 normal variation. One block (houses 527\u2013539, near York Ave) jumps to 73.5%, with 61 tickets on days the sweeper never appeared and only 22 confirmed sweeps.',
+      'Clay Street in Greenpoint has 2 verified blocks in Precinct 94. The block from houses 88\u2013116 is swept reliably with an 11% skip rate and 93 confirmed sweeps. But the adjacent block (houses 14\u201385) is skipped 82% of the time \u2014 92 tickets on days the sweeper never came, and only 20 confirmed sweeps over 8 months.',
     stats: [
-      { label: 'Skip rate (this block)', value: '73.5%', color: 'red.500' },
-      { label: 'Eight neighbor blocks', value: '10\u201313% skip', color: 'green.500' },
-      { label: 'Tickets on skip days', value: '61', color: 'red.500' },
+      { label: 'Skip rate (this block)', value: '82.1%', color: 'red.500' },
+      { label: 'Adjacent block', value: '11.4% skip', color: 'green.500' },
+      { label: 'Tickets on skip days', value: '92', color: 'red.500' },
     ],
-    highlight: 'Nine blocks, same street, same precinct. Eight swept consistently. One skipped three-quarters of the time.',
+    highlight: 'Two blocks on the same street, same precinct. One swept 89% of the time, the other skipped 82%. 92 tickets at $65 = $5,980 in fines on a block the sweeper rarely visited.',
   },
   {
     title: 'E 103rd St, Manhattan \u2014 93% Skipped While Neighbors Get Swept',
