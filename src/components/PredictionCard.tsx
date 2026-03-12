@@ -65,6 +65,30 @@ export default function PredictionCard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Find nearest swept street for "find parking" navigation
+  // Must be above the early return to satisfy Rules of Hooks
+  const nearestSwept = useMemo(() => {
+    if (!userPhysicalId || !userLatLng || realtimeSweepStatus.size === 0) return null;
+    let bestDist = Infinity;
+    let bestCenter: [number, number] | null = null;
+    let bestName = '';
+    for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
+      if (!visitTime || pid === userPhysicalId) continue; // skip user's own block
+      const seg = segments.get(pid);
+      if (!seg) continue;
+      const center = getSegmentCenter(seg);
+      if (center[0] === 0 && center[1] === 0) continue;
+      const dist = haversine(userLatLng, center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestCenter = center;
+        bestName = seg.full_street_name || seg.stname_label || '';
+      }
+    }
+    if (!bestCenter || bestDist > 2000) return null; // don't suggest if >2km away
+    return { center: bestCenter, name: bestName, distMeters: Math.round(bestDist) };
+  }, [userLatLng, userPhysicalId, realtimeSweepStatus, segments]);
+
   if (!userPhysicalId) return null;
 
   // Use real-time visit time — check both single-block and batch scan for consistency
@@ -128,29 +152,6 @@ export default function PredictionCard() {
     : !todaySchedule ? 'no_asp'
     : todaySkipRate >= 95 ? 'asp_but_rare'
     : 'normal';
-
-  // Find nearest swept street for "find parking" navigation
-  const nearestSwept = useMemo(() => {
-    if (!userLatLng || realtimeSweepStatus.size === 0) return null;
-    let bestDist = Infinity;
-    let bestCenter: [number, number] | null = null;
-    let bestName = '';
-    for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
-      if (!visitTime || pid === userPhysicalId) continue; // skip user's own block
-      const seg = segments.get(pid);
-      if (!seg) continue;
-      const center = getSegmentCenter(seg);
-      if (center[0] === 0 && center[1] === 0) continue;
-      const dist = haversine(userLatLng, center);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestCenter = center;
-        bestName = seg.full_street_name || seg.stname_label || '';
-      }
-    }
-    if (!bestCenter || bestDist > 2000) return null; // don't suggest if >2km away
-    return { center: bestCenter, name: bestName, distMeters: Math.round(bestDist) };
-  }, [userLatLng, userPhysicalId, realtimeSweepStatus, segments]);
 
   // Find next scheduled sweep day
   const nextSweepDay = (() => {
