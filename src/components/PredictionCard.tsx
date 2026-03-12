@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse, IconButton, Button, Link } from '@chakra-ui/react';
 import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon, ExternalLinkIcon } from '@chakra-ui/icons';
 import { useSweepStore } from '../store';
+import { useShallow } from 'zustand/react/shallow';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 import { getSegmentCenter, haversine } from '../utils/geo';
 import { getInspectorQ75Sync, getPostSweepReturnSync } from '../services/sweepData';
@@ -41,23 +42,30 @@ function formatCountdown(totalMinutes: number): string {
 }
 
 export default function PredictionCard() {
-  const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
-  const userAddress = useSweepStore((s) => s.userAddress);
-  const sweepVisitTime = useSweepStore((s) => s.sweepVisitTime);
-  const historicalPattern = useSweepStore((s) => s.historicalPattern);
-  const eta = useSweepStore((s) => s.eta);
-  const aspSchedules = useSweepStore((s) => s.aspSchedules);
-  const isLoading = useSweepStore((s) => s.isLoading);
-  const sweepReliability = useSweepStore((s) => s.sweepReliability);
-  const inspectorTiming = useSweepStore((s) => s.inspectorTiming);
-  const postSweepReturn = useSweepStore((s) => s.postSweepReturn);
-  const doubleSweepInfo = useSweepStore((s) => s.doubleSweepInfo);
-  const alertsEnabled = useSweepStore((s) => s.alertsEnabled);
-  const setAlertsEnabled = useSweepStore((s) => s.setAlertsEnabled);
-  // Must call ALL hooks before any conditional returns (Rules of Hooks)
-  const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
-  const segments = useSweepStore((s) => s.segments);
-  const userLatLng = useSweepStore((s) => s.userLatLng);
+  // Single shallow selector prevents multiple re-renders when several store properties change at once
+  const {
+    userPhysicalId, userAddress, sweepVisitTime, historicalPattern,
+    eta, aspSchedules, isLoading, sweepReliability, inspectorTiming,
+    postSweepReturn, doubleSweepInfo, alertsEnabled, setAlertsEnabled,
+    realtimeSweepStatus, segments, userLatLng,
+  } = useSweepStore(useShallow((s) => ({
+    userPhysicalId: s.userPhysicalId,
+    userAddress: s.userAddress,
+    sweepVisitTime: s.sweepVisitTime,
+    historicalPattern: s.historicalPattern,
+    eta: s.eta,
+    aspSchedules: s.aspSchedules,
+    isLoading: s.isLoading,
+    sweepReliability: s.sweepReliability,
+    inspectorTiming: s.inspectorTiming,
+    postSweepReturn: s.postSweepReturn,
+    doubleSweepInfo: s.doubleSweepInfo,
+    alertsEnabled: s.alertsEnabled,
+    setAlertsEnabled: s.setAlertsEnabled,
+    realtimeSweepStatus: s.realtimeSweepStatus,
+    segments: s.segments,
+    userLatLng: s.userLatLng,
+  })));
 
   // Tick every minute to keep countdown fresh
   const [, setTick] = useState(0);

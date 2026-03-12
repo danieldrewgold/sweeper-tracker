@@ -11,6 +11,9 @@ import { segmentToLatLngs } from '../utils/geo';
  * Uses SODA data for baseline coloring + tile overlay for additional real-time coverage.
  * User's selected block is highlighted in blue.
  */
+// Module-level hover dedup — prevents redundant setStyle calls on same segment
+let lastHoveredId: string | null = null;
+
 export default function SegmentLayer() {
   const map = useMap();
   const segments = useSweepStore((s) => s.segments);
@@ -19,6 +22,7 @@ export default function SegmentLayer() {
   const { selectFromClick } = useUserBlock();
   const layerGroupRef = useRef<L.LayerGroup>(L.layerGroup());
   const polylineMapRef = useRef<Map<string, L.Polyline[]>>(new Map());
+  const lastStyleRef = useRef<Map<string, string>>(new Map()); // id → "color|weight|opacity"
   const selectFromClickRef = useRef(selectFromClick);
   selectFromClickRef.current = selectFromClick;
 
@@ -65,9 +69,12 @@ export default function SegmentLayer() {
         });
         polyline.on('click', () => selectFromClickRef.current(id));
         polyline.on('mouseover', function (this: L.Polyline) {
+          if (lastHoveredId === id) return;
+          lastHoveredId = id;
           this.setStyle({ weight: 6 });
         });
         polyline.on('mouseout', function (this: L.Polyline) {
+          if (lastHoveredId === id) lastHoveredId = null;
           const isUser = id === useSweepStore.getState().userPhysicalId;
           this.setStyle({ weight: isUser ? COLORS.userBlockWeight : COLORS.defaultWeight });
         });
@@ -144,8 +151,13 @@ export default function SegmentLayer() {
         opacity = 1;
       }
 
-      for (const pl of polylines) {
-        pl.setStyle({ color, weight, opacity });
+      // Only call setStyle when values actually changed (differential update)
+      const styleKey = `${color}|${weight}|${opacity}`;
+      if (lastStyleRef.current.get(id) !== styleKey) {
+        lastStyleRef.current.set(id, styleKey);
+        for (const pl of polylines) {
+          pl.setStyle({ color, weight, opacity });
+        }
       }
     }
   }, [sweepRecords, userPhysicalId, sweepVisitTime, realtimeSweepStatus, segments]);
@@ -157,6 +169,7 @@ export default function SegmentLayer() {
       if (zoom < MIN_SEGMENT_ZOOM) {
         layerGroupRef.current.clearLayers();
         polylineMapRef.current.clear();
+        lastStyleRef.current.clear();
       }
     };
     map.on('zoomend', onZoom);

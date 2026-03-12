@@ -144,6 +144,21 @@ export const useSweepStore = create<SweepState>((set) => ({
   realtimeSweepStatus: new Map(),
   mergeRealtimeSweepStatus: (updates) =>
     set((state) => {
+      // Skip update if nothing actually changed (avoids cascading re-renders)
+      let hasChange = false;
+      for (const [id, time] of updates) {
+        const existing = state.realtimeSweepStatus.get(id);
+        if (existing === undefined && !state.realtimeSweepStatus.has(id)) {
+          hasChange = true; break; // new key
+        }
+        if (existing === null && time !== null) { hasChange = true; break; }
+        if (existing !== null && time === null) { hasChange = true; break; }
+        if (existing !== null && time !== null && existing.getTime() !== time.getTime()) {
+          hasChange = true; break;
+        }
+      }
+      if (!hasChange) return state; // same reference → no subscriber notifications
+
       const next = new Map(state.realtimeSweepStatus);
       for (const [id, time] of updates) {
         next.set(id, time);
