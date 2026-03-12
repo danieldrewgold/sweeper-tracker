@@ -68,6 +68,10 @@ interface SweepState {
   eta: EtaResult | null;
   setEta: (e: EtaResult | null) => void;
 
+  // Alerts
+  alertsEnabled: boolean;
+  setAlertsEnabled: (enabled: boolean) => void;
+
   // UI
   isLoading: boolean;
   error: string | null;
@@ -192,6 +196,14 @@ export const useSweepStore = create<SweepState>((set) => ({
 
   eta: null,
   setEta: (e) => set({ eta: e }),
+
+  alertsEnabled: (() => {
+    try { return localStorage.getItem('sweeptracker_alerts') === 'true'; } catch { return false; }
+  })(),
+  setAlertsEnabled: (enabled) => {
+    try { localStorage.setItem('sweeptracker_alerts', enabled ? 'true' : 'false'); } catch { /* noop */ }
+    set({ alertsEnabled: enabled });
+  },
 
   isLoading: false,
   error: null,

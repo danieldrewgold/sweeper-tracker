@@ -13,6 +13,7 @@ import { useEta } from './hooks/useEta';
 import { useUserBlock } from './hooks/useUserBlock';
 import { useSweepStore } from './store';
 import { useRestoreBlock } from './hooks/useRestoreBlock';
+import { useSweepAlerts } from './hooks/useSweepAlerts';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -173,6 +174,7 @@ function AppContent() {
   useSweepData();
   useEta();
   useRestoreBlock();
+  useSweepAlerts();
 
   const isMobile = useBreakpointValue({ base: true, md: false });
 

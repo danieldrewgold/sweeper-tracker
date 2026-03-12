@@ -94,3 +94,25 @@ export async function geocodeSearch(query: string): Promise<NominatimResult[]> {
   cache.set(cacheKey, results);
   return results;
 }
+
+/** Reverse geocode coordinates to an address (for GPS location). */
+export async function reverseGeocode(lat: number, lon: number): Promise<NominatimResult | null> {
+  await enqueueThrottle();
+
+  const params = new URLSearchParams({
+    lat: lat.toString(),
+    lon: lon.toString(),
+    format: 'json',
+    addressdetails: '1',
+    zoom: '18',
+  });
+
+  const response = await fetch(`${NOMINATIM_BASE}/reverse?${params}`, {
+    headers: { 'User-Agent': 'NYCSweepTracker/1.0' },
+  });
+
+  if (!response.ok) return null;
+  const result: NominatimResult = await response.json();
+  if (!result.place_id) return null;
+  return result;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse } from '@chakra-ui/react';
-import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon } from '@chakra-ui/icons';
+import { Box, Text, VStack, Badge, Divider, HStack, Icon, Collapse, IconButton } from '@chakra-ui/react';
+import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon } from '@chakra-ui/icons';
 import { useSweepStore } from '../store';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 
@@ -50,6 +50,8 @@ export default function PredictionCard() {
   const inspectorTiming = useSweepStore((s) => s.inspectorTiming);
   const postSweepReturn = useSweepStore((s) => s.postSweepReturn);
   const doubleSweepInfo = useSweepStore((s) => s.doubleSweepInfo);
+  const alertsEnabled = useSweepStore((s) => s.alertsEnabled);
+  const setAlertsEnabled = useSweepStore((s) => s.setAlertsEnabled);
   // Must call ALL hooks before any conditional returns (Rules of Hooks)
   const realtimeSweepStatus = useSweepStore((s) => s.realtimeSweepStatus);
 
@@ -113,17 +115,61 @@ export default function PredictionCard() {
   // Today's DOW index (Mon=0 .. Fri=4, weekend=-1)
   const todayDowIdx = todayDow >= 1 && todayDow <= 5 ? todayDow - 1 : -1;
 
+  // Classify today's sweep status for the "waiting" state
+  const DAY_FULL_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const isWeekend = todayDow === 0 || todayDow === 6;
+  const todaySkipRate = todayDowIdx >= 0 && sweepReliability?.dowSkipRates
+    ? sweepReliability.dowSkipRates[todayDowIdx] : -1;
+  const sweepDayStatus: 'weekend' | 'no_asp' | 'asp_but_rare' | 'normal' =
+    isWeekend ? 'weekend'
+    : !todaySchedule ? 'no_asp'
+    : todaySkipRate >= 95 ? 'asp_but_rare'
+    : 'normal';
+
+  // Find next scheduled sweep day
+  const nextSweepDay = (() => {
+    if (aspSchedules.length === 0) return null;
+    const aspDayNames = new Set(aspSchedules.map((s) => s.day));
+    for (let offset = 1; offset <= 7; offset++) {
+      const d = (todayDow + offset) % 7;
+      if (d === 0 || d === 6) continue; // skip weekends
+      const dayName = DAY_FULL_NAMES[d].toUpperCase();
+      if (aspDayNames.has(dayName)) return DAY_FULL_NAMES[d];
+    }
+    return null;
+  })();
+
   return (
     <Box bg="white" borderRadius="lg" boxShadow="md" overflow="hidden">
       {/* Header */}
-      <Box bg="green.50" px={4} py={3} borderBottom="1px" borderColor="green.100">
-        <Text fontSize="sm" fontWeight="bold" color="green.800">
-          YOUR BLOCK
-        </Text>
-        <Text fontSize="xs" color="gray.600" noOfLines={1}>
-          {userAddress ?? 'Selected block'}
-        </Text>
-      </Box>
+      <HStack bg="green.50" px={4} py={3} borderBottom="1px" borderColor="green.100" justify="space-between" align="start">
+        <Box>
+          <Text fontSize="sm" fontWeight="bold" color="green.800">
+            YOUR BLOCK
+          </Text>
+          <Text fontSize="xs" color="gray.600" noOfLines={1}>
+            {userAddress ?? 'Selected block'}
+          </Text>
+        </Box>
+        <IconButton
+          aria-label={alertsEnabled ? 'Disable sweep alerts' : 'Enable sweep alerts'}
+          icon={<BellIcon />}
+          size="sm"
+          variant="ghost"
+          color={alertsEnabled ? 'green.600' : 'gray.400'}
+          onClick={async () => {
+            if (!alertsEnabled) {
+              if ('Notification' in window && Notification.permission === 'default') {
+                await Notification.requestPermission();
+              }
+              setAlertsEnabled(true);
+            } else {
+              setAlertsEnabled(false);
+            }
+          }}
+          title={alertsEnabled ? 'Alerts on — tap to disable' : 'Get notified when your block is swept'}
+        />
+      </HStack>
 
       <VStack align="stretch" spacing={3} p={4}>
         {/* State 3: Done — swept */}
@@ -183,23 +229,50 @@ export default function PredictionCard() {
           </>
         )}
 
-        {/* State 1: Waiting — with historical countdown */}
+        {/* State 1: Waiting */}
         {!wasSwept && !isSweeperNearby && (
           <>
-            <HStack spacing={2}>
-              <Icon as={TimeIcon} color="gray.400" boxSize={4} />
-              <Text fontSize="sm" color="gray.600">
-                Not yet swept today
+            {sweepDayStatus === 'weekend' && (
+              <HStack spacing={2}>
+                <Icon as={InfoOutlineIcon} color="gray.400" boxSize={4} />
+                <Text fontSize="sm" color="gray.600">No sweeping on weekends</Text>
+              </HStack>
+            )}
+            {sweepDayStatus === 'no_asp' && (
+              <HStack spacing={2}>
+                <Icon as={InfoOutlineIcon} color="gray.400" boxSize={4} />
+                <Text fontSize="sm" color="gray.600">No ASP scheduled today</Text>
+              </HStack>
+            )}
+            {sweepDayStatus === 'asp_but_rare' && (
+              <HStack spacing={2}>
+                <Icon as={WarningIcon} color="orange.400" boxSize={4} />
+                <Text fontSize="sm" color="orange.700">
+                  ASP is posted but sweeper rarely comes on {DAY_FULL_NAMES[todayDow]}s
+                </Text>
+              </HStack>
+            )}
+            {sweepDayStatus === 'normal' && (
+              <HStack spacing={2}>
+                <Icon as={TimeIcon} color="gray.400" boxSize={4} />
+                <Text fontSize="sm" color="gray.600">Not yet swept today</Text>
+              </HStack>
+            )}
+
+            {nextSweepDay && sweepDayStatus !== 'normal' && (
+              <Text fontSize="xs" color="gray.500" ml={6}>
+                Next scheduled: {nextSweepDay}
               </Text>
-            </HStack>
-            {lastSweepTime && !wasSwept && (
-              <Text fontSize="xs" color="gray.500">
+            )}
+
+            {lastSweepTime && (
+              <Text fontSize="xs" color="gray.500" ml={6}>
                 Last swept {lastSweepTime.toLocaleDateString('en-US', { weekday: 'long' })}{' '}
                 at {formatTime(lastSweepTime)}
               </Text>
             )}
 
-            {/* Historical countdown */}
+            {/* Historical countdown — only on normal sweep days */}
             {showCountdown && minutesUntilExpected > 0 && (
               <Box bg="purple.50" px={3} py={2} borderRadius="md">
                 <Text fontSize="sm" fontWeight="bold" color="purple.700">
@@ -359,6 +432,12 @@ export default function PredictionCard() {
             </Text>
           </>
         )}
+
+        {/* Disclaimer */}
+        <Divider />
+        <Text fontSize="2xs" color="gray.400" fontStyle="italic">
+          Data is based on historical GPS tracking and may not reflect real-time conditions. Not affiliated with NYC or DSNY.
+        </Text>
       </VStack>
     </Box>
   );
