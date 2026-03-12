@@ -324,7 +324,7 @@ export default function PredictionCard() {
         )}
 
         {/* Find parking — nearest swept street */}
-        {nearestSwept && !isSafeToPark && sweepDayStatus === 'normal' && (
+        {nearestSwept && !wasSwept && (
           <Box bg="blue.50" px={3} py={2} borderRadius="md">
             <Text fontSize="xs" color="blue.700" mb={2}>
               <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
