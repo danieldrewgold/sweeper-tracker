@@ -71,6 +71,15 @@ export async function getInspectorTiming(
   };
 }
 
+/** Synchronous inspector lookup — returns q75 (minutes since midnight) or null.
+ *  Only works after sweepData.json has been loaded (always true once a block is selected). */
+export function getInspectorQ75Sync(streetName: string, borough: string): number | null {
+  if (!sweepData) return null;
+  const key = `${normalizeStreet(streetName)}|${borough}`;
+  const entry = sweepData.i[key];
+  return entry ? entry[2] : null; // index 2 = q75Minutes
+}
+
 export async function getPostSweepReturn(
   streetName: string,
   borough: string,

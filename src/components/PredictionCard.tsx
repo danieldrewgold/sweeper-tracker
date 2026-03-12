@@ -4,6 +4,7 @@ import { CheckCircleIcon, TimeIcon, WarningIcon, InfoOutlineIcon, BellIcon, Exte
 import { useSweepStore } from '../store';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 import { getSegmentCenter, haversine } from '../utils/geo';
+import { getInspectorQ75Sync } from '../services/sweepData';
 
 /** Tappable info icon that toggles an explanation underneath */
 function InfoTip({ detail }: { detail: string }) {
@@ -65,32 +66,50 @@ export default function PredictionCard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Find nearest swept street where inspector is likely done
+  // Find nearest swept street where inspector is likely done, preferring most recently swept
   // Must be above the early return to satisfy Rules of Hooks
+  const BORO_NAMES: Record<string, string> = { '1': 'Manhattan', '2': 'Bronx', '3': 'Brooklyn', '4': 'Queens', '5': 'Staten Island' };
   const nearestSwept = useMemo(() => {
     if (!userPhysicalId || !userLatLng || realtimeSweepStatus.size === 0) return null;
     const now = Date.now();
-    const INSPECTOR_BUFFER_MS = 30 * 60 * 1000; // 30 min after sweep → inspector has likely passed
-    let bestDist = Infinity;
-    let bestCenter: [number, number] | null = null;
-    let bestName = '';
+    const nowMins = dateToMinutes(new Date());
+    const FALLBACK_BUFFER_MS = 30 * 60 * 1000; // 30 min fallback if no inspector data
+
+    // Collect all candidates that are swept AND inspector-cleared
+    type Candidate = { center: [number, number]; name: string; dist: number; sweptAt: number };
+    const candidates: Candidate[] = [];
+
     for (const [pid, visitTime] of realtimeSweepStatus.entries()) {
-      if (!visitTime || pid === userPhysicalId) continue; // skip user's own block
-      // Only consider blocks swept 30+ min ago so inspector has had time to pass
-      if (now - visitTime.getTime() < INSPECTOR_BUFFER_MS) continue;
+      if (!visitTime || pid === userPhysicalId) continue;
       const seg = segments.get(pid);
       if (!seg) continue;
+
+      // Check if inspector is likely done on this street
+      const streetName = seg.full_street_name || seg.stname_label || '';
+      const boro = BORO_NAMES[seg.boroughcode] ?? '';
+      const inspQ75 = streetName && boro ? getInspectorQ75Sync(streetName, boro) : null;
+
+      if (inspQ75 !== null) {
+        // Use per-street inspector data: current time must be past the q75 window
+        if (nowMins <= inspQ75) continue;
+      } else {
+        // No inspector data for this street — fall back to 30 min after sweep
+        if (now - visitTime.getTime() < FALLBACK_BUFFER_MS) continue;
+      }
+
       const center = getSegmentCenter(seg);
       if (center[0] === 0 && center[1] === 0) continue;
       const dist = haversine(userLatLng, center);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestCenter = center;
-        bestName = seg.full_street_name || seg.stname_label || '';
-      }
+      if (dist > 2000) continue; // skip if >2km away
+      candidates.push({ center, name: streetName, dist, sweptAt: visitTime.getTime() });
     }
-    if (!bestCenter || bestDist > 2000) return null; // don't suggest if >2km away
-    return { center: bestCenter, name: bestName, distMeters: Math.round(bestDist) };
+
+    if (candidates.length === 0) return null;
+
+    // Sort: most recently swept first (freshest spots), then nearest as tiebreaker
+    candidates.sort((a, b) => (b.sweptAt - a.sweptAt) || (a.dist - b.dist));
+    const best = candidates[0];
+    return { center: best.center, name: best.name, distMeters: Math.round(best.dist) };
   }, [userLatLng, userPhysicalId, realtimeSweepStatus, segments]);
 
   if (!userPhysicalId) return null;
