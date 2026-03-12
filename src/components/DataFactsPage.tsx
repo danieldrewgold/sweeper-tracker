@@ -172,11 +172,70 @@ export default function DataFactsPage() {
 
         <Divider />
 
+        {/* ── Key Finding ── */}
+        <Box
+          bg="white"
+          borderRadius="xl"
+          boxShadow="md"
+          border="1px"
+          borderColor="gray.100"
+          p={{ base: 5, md: 7 }}
+        >
+          <Heading size="md" color="gray.800" mb={3}>
+            The Aggregate Picture
+          </Heading>
+          <Text fontSize="sm" color="gray.700" lineHeight="tall" mb={4}>
+            Across 4,136 verified single-block segments where GPS matching is proven to work,
+            14.8% of ASP tickets were issued on days when zero sweeper GPS was detected for
+            that block. The no-sweep rate is consistent across all four boroughs, ranging from
+            12.8% in Manhattan to 18.8% in the Bronx.
+          </Text>
+          <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Bronx</Text>
+              <Text fontSize="xs" color="gray.600">18.8% no-sweep rate</Text>
+            </Box>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Queens</Text>
+              <Text fontSize="xs" color="gray.600">13.8% no-sweep rate</Text>
+            </Box>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Brooklyn</Text>
+              <Text fontSize="xs" color="gray.600">15.9% no-sweep rate</Text>
+            </Box>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Manhattan</Text>
+              <Text fontSize="xs" color="gray.600">12.8% no-sweep rate</Text>
+            </Box>
+          </SimpleGrid>
+          <Box
+            bg="orange.50"
+            border="1px"
+            borderColor="orange.200"
+            borderRadius="md"
+            px={4}
+            py={3}
+            mt={4}
+          >
+            <Text fontSize="sm" color="orange.800" fontWeight="500">
+              These are blocks where the sweeper has been confirmed present on other days,
+              proving GPS matching works. On the flagged days, the GPS simply shows the
+              truck never came.
+            </Text>
+          </Box>
+        </Box>
+
+        <Divider />
+
         {/* ── Case Studies ── */}
         <VStack align="stretch" spacing={5}>
           <Heading size="lg" color="gray.800">
             Case Studies
           </Heading>
+          <Text fontSize="sm" color="gray.600">
+            Blocks where neighboring segments on the same street are swept regularly,
+            but one block is chronically skipped — while still getting ticketed.
+          </Text>
 
           {CASE_STUDIES.map((cs) => (
             <Box
@@ -337,7 +396,7 @@ export default function DataFactsPage() {
                       <Td isNumeric fontWeight={isTop10 ? '600' : undefined}>{row.noSweep.toLocaleString()}</Td>
                       <Td isNumeric>
                         <Badge
-                          colorScheme={row.noSweepRate >= 18 ? 'red' : row.noSweepRate >= 12 ? 'orange' : 'green'}
+                          colorScheme={row.noSweepRate >= 20 ? 'red' : row.noSweepRate >= 15 ? 'orange' : 'green'}
                           fontSize="xs"
                           px={2}
                           borderRadius="md"
