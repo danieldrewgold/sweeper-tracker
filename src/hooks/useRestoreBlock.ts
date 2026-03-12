@@ -17,6 +17,8 @@ export function useRestoreBlock() {
   const userAddress = useSweepStore((s) => s.userAddress);
   const userPhysicalId = useSweepStore((s) => s.userPhysicalId);
   const hasRestored = useRef(false);
+  // Track whether the user actively selected a block (vs. auto-restore)
+  const userActivelySelected = useRef(false);
   const selectGeoRef = useRef(selectFromGeocode);
   const selectSavedRef = useRef(selectFromSaved);
   selectGeoRef.current = selectFromGeocode;
@@ -31,16 +33,52 @@ export function useRestoreBlock() {
     const urlAddress = params.get('address');
 
     if (urlAddress) {
-      // URL param takes priority — search and select
-      geocodeSearch(urlAddress).then((results) => {
-        if (results.length > 0) {
-          selectGeoRef.current(results[0]);
+      // Check if this is a stale URL from a previous session or a fresh shared link.
+      // If localStorage has the same address, it's likely the user returning — not a shared link.
+      // Strip the param and fall through to localStorage restore (no URL persistence).
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const { address: savedAddress } = JSON.parse(saved);
+          if (savedAddress && savedAddress === urlAddress) {
+            // Stale URL from previous session — strip it and restore from localStorage
+            const url = new URL(window.location.href);
+            url.searchParams.delete('address');
+            window.history.replaceState({}, '', url.toString());
+            // Fall through to localStorage restore below
+          } else {
+            // Different address — likely a shared link, respect it
+            geocodeSearch(urlAddress).then((results) => {
+              if (results.length > 0) {
+                userActivelySelected.current = true;
+                selectGeoRef.current(results[0]);
+              }
+            }).catch(() => {});
+            return;
+          }
+        } else {
+          // No localStorage — this is a shared link, respect it
+          geocodeSearch(urlAddress).then((results) => {
+            if (results.length > 0) {
+              userActivelySelected.current = true;
+              selectGeoRef.current(results[0]);
+            }
+          }).catch(() => {});
+          return;
         }
-      }).catch(() => {});
-      return;
+      } catch {
+        // Parse error, just try the URL
+        geocodeSearch(urlAddress).then((results) => {
+          if (results.length > 0) {
+            userActivelySelected.current = true;
+            selectGeoRef.current(results[0]);
+          }
+        }).catch(() => {});
+        return;
+      }
     }
 
-    // Fall back to LocalStorage
+    // Fall back to LocalStorage (no URL sync — just quietly restore)
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -64,13 +102,23 @@ export function useRestoreBlock() {
     } catch {}
   }, []); // stable — uses refs for callbacks
 
-  // Sync current block to URL (without page reload)
+  // Mark active selection whenever the user picks a new block after initial restore
   useEffect(() => {
-    if (userPhysicalId && userAddress) {
+    if (hasRestored.current && userPhysicalId) {
+      // After the first restore cycle, any block change is an active selection
+      // (small delay to skip the restore itself)
+      const timer = setTimeout(() => { userActivelySelected.current = true; }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [userPhysicalId]);
+
+  // Sync current block to URL only when user actively selected (not on auto-restore)
+  useEffect(() => {
+    if (userPhysicalId && userAddress && userActivelySelected.current) {
       const url = new URL(window.location.href);
       url.searchParams.set('address', userAddress);
       window.history.replaceState({}, '', url.toString());
-    } else {
+    } else if (!userPhysicalId) {
       const url = new URL(window.location.href);
       if (url.searchParams.has('address')) {
         url.searchParams.delete('address');

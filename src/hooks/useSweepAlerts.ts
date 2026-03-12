@@ -17,17 +17,35 @@ export function useSweepAlerts() {
 
   // Track previous swept state to detect transitions
   const wasSweptRef = useRef(false);
+  // Skip the first check after a block change to avoid false alerts on restore
+  const blockSettledRef = useRef(false);
+  const prevBlockRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!alertsEnabled || !userPhysicalId) {
       wasSweptRef.current = false;
+      blockSettledRef.current = false;
+      prevBlockRef.current = null;
       return;
+    }
+
+    // When the block changes, mark as unsettled — record state but don't alert
+    if (prevBlockRef.current !== userPhysicalId) {
+      prevBlockRef.current = userPhysicalId;
+      blockSettledRef.current = false;
     }
 
     const todayStr = new Date().toDateString();
     const singleBlockSwept = sweepVisitTime && sweepVisitTime.toDateString() === todayStr;
     const batchSweptTime = realtimeSweepStatus.get(userPhysicalId);
     const isSweptNow = !!(singleBlockSwept || batchSweptTime);
+
+    // First check after block change: just record current state, don't fire
+    if (!blockSettledRef.current) {
+      wasSweptRef.current = isSweptNow;
+      blockSettledRef.current = true;
+      return;
+    }
 
     // Detect transition: was NOT swept → IS swept
     if (isSweptNow && !wasSweptRef.current) {
