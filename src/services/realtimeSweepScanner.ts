@@ -4,10 +4,10 @@ import { useSweepStore } from '../store';
 import type { CsclSegment } from '../types/cscl';
 
 /** Max concurrent sweepinfo requests */
-const CONCURRENCY = 8;
+const CONCURRENCY = 15;
 
 /** Minimum delay between batches to avoid hammering the API */
-const BATCH_DELAY_MS = 50;
+const BATCH_DELAY_MS = 20;
 
 /** Segments confirmed swept today — never re-query (streets don't un-sweep) */
 const confirmedSwept = new Set<string>();
