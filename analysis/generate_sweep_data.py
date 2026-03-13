@@ -121,9 +121,21 @@ def load_reliability_with_dow():
         valid_rates = [r for r in dow_rates if r >= 0]
         has_pattern = valid_rates and (max(valid_rates) - min(valid_rates)) > 20
 
+        # Compute skip rate only over ASP-scheduled days (>10% sweep rate)
+        # so the overall % naturally matches the per-day percentages
+        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] / dow_total[dow] > 0.10}
+        if scheduled_days:
+            sched_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
+            sched_swept = sum(1 for d in swept if d.weekday() < 5 and d.weekday() in scheduled_days and d in set(weekday_dates))
+            skip_rate = round(100 * (1 - sched_swept / sched_total), 1) if sched_total > 0 else info['skip_rate']
+            total_days = sched_total
+        else:
+            skip_rate = info['skip_rate']
+            total_days = info['total_days']
+
         data[pid] = [
-            info['skip_rate'],
-            info['total_days'],
+            skip_rate,
+            total_days,
             info['tickets'],
             dow_rates if has_pattern else None,
         ]

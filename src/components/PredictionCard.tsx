@@ -178,10 +178,15 @@ export default function PredictionCard() {
     ? missedAspDays.every((d) => sweepReliability.dowSkipRates![d] >= 100)
     : false;
 
-  // Correct the overall skip rate to only count ASP-scheduled days
-  // (the raw skip rate may include non-ASP day sweeps that inflate it)
-  const correctedSkipRate = (() => {
-    if (!sweepReliability?.dowSkipRates || aspDays.size === 0) return sweepReliability?.skipRate ?? 0;
+  // Use ASP schedule to get a real skip rate for actual ASP days.
+  // The pipeline computes skip rate over GPS-inferred "scheduled" days, which
+  // can differ from real ASP days. When we have ASP data, recalculate using
+  // only the real ASP days. Over 7 months each DOW has ~equal observations,
+  // so the per-DOW rates are each real percentages and their mean equals
+  // the count-based rate.
+  const displaySkipRate = (() => {
+    if (!sweepReliability) return 0;
+    if (!sweepReliability.dowSkipRates || aspDays.size === 0) return sweepReliability.skipRate;
     const aspDayRates = [...aspDays]
       .map((d) => sweepReliability.dowSkipRates![d])
       .filter((r) => r >= 0);
@@ -450,17 +455,17 @@ export default function PredictionCard() {
             <Box px={1}>
               <HStack spacing={2} mb={1} flexWrap="wrap">
                 <Badge
-                  colorScheme={correctedSkipRate <= 10 ? 'green' : correctedSkipRate <= 50 ? 'yellow' : 'red'}
+                  colorScheme={displaySkipRate <= 10 ? 'green' : displaySkipRate <= 50 ? 'yellow' : 'red'}
                   fontSize="xs"
                 >
-                  {correctedSkipRate <= 10 ? 'Reliable route' : correctedSkipRate <= 50 ? 'Sometimes skipped' : 'Often skipped'}
+                  {displaySkipRate <= 10 ? 'Reliable route' : displaySkipRate <= 50 ? 'Sometimes skipped' : 'Often skipped'}
                 </Badge>
                 <Text fontSize="xs" color="gray.500">
-                  ~{Math.round(100 - correctedSkipRate)}% of ASP days ({sweepReliability.totalDays} days)
+                  ~{Math.round(100 - displaySkipRate)}% of ASP days ({sweepReliability.totalDays} days)
                   <InfoTip detail={`Tracked over ${sweepReliability.totalDays} scheduled ASP days using NYC sweeper GPS data (Jun 2025–Jan 2026). Shows what % of days the sweeper actually showed up on this block.`} />
                 </Text>
               </HStack>
-              {sweepReliability.totalTickets > 0 && correctedSkipRate > 30 && (
+              {sweepReliability.totalTickets > 0 && displaySkipRate > 30 && (
                 <Text fontSize="xs" color="red.600" mb={1}>
                   {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block last year
                 </Text>
