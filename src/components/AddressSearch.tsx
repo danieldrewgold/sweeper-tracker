@@ -30,7 +30,7 @@ function LocationIcon() {
 }
 
 interface Props {
-  onSelect: (result: NominatimResult) => void;
+  onSelect: (result: NominatimResult, originalQuery?: string) => void;
 }
 
 const HAS_GEOLOCATION = typeof navigator !== 'undefined' && 'geolocation' in navigator;
@@ -84,13 +84,15 @@ export default function AddressSearch({ onSelect }: Props) {
   };
 
   const handleSelect = (result: NominatimResult) => {
+    const houseNum = result.address?.house_number ?? '';
     const road = result.address?.road ?? result.display_name.split(',')[0];
     const area = result.address?.suburb || result.address?.neighbourhood || '';
-    setQuery(area ? `${road}, ${area}` : road);
+    const prefix = houseNum ? `${houseNum} ` : '';
+    setQuery(area ? `${prefix}${road}, ${area}` : `${prefix}${road}`);
     setShowResults(false);
     setResults([]);
     setHighlightedIndex(-1);
-    onSelect(result);
+    onSelect(result, query);
   };
 
   const handleClear = () => {

@@ -56,28 +56,95 @@ function streetSimilarity(a: string, b: string): number {
   return matches / Math.max(wordsA.length, wordsB.size);
 }
 
-/** Resolve a Nominatim result (already geocoded) to a CSCL segment */
-export async function resolveFromGeocode(result: NominatimResult): Promise<ResolvedBlock | null> {
+/** Parse house number and street name from a user's search query.
+ *  e.g. "503 84th St Brooklyn" → { houseNum: "503", street: "84th St" }
+ *  e.g. "Broadway, Manhattan" → { houseNum: "", street: "Broadway" } */
+function parseQuery(query: string): { houseNum: string; street: string } | null {
+  if (!query) return null;
+  // Strip borough / city / state suffixes
+  const cleaned = query
+    .replace(/,?\s*(brooklyn|manhattan|bronx|queens|staten\s*island|new\s*york|nyc?|ny)\s*$/i, '')
+    .replace(/,?\s*(brooklyn|manhattan|bronx|queens|staten\s*island|new\s*york|nyc?|ny)\s*$/i, '')
+    .trim();
+  if (!cleaned) return null;
+
+  // Try to extract leading house number + street
+  const m = cleaned.match(/^(\d+[-\d]*)\s+(.+)$/);
+  if (m) {
+    return { houseNum: m[1].replace(/-.*/, ''), street: m[2].trim() };
+  }
+  // No house number — entire thing is street name
+  return { houseNum: '', street: cleaned };
+}
+
+/** Check if a house number falls within a CSCL segment's address ranges */
+function houseNumberInRange(houseNum: number, seg: CsclSegment): boolean {
+  const ranges = [
+    [seg.l_low_hn, seg.l_high_hn],
+    [seg.r_low_hn, seg.r_high_hn],
+  ];
+  for (const [lo, hi] of ranges) {
+    const low = parseInt(lo, 10);
+    const high = parseInt(hi, 10);
+    if (!isNaN(low) && !isNaN(high) && houseNum >= low && houseNum <= high) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Resolve a Nominatim result (already geocoded) to a CSCL segment.
+ *  @param originalQuery — the raw text the user typed in the search box,
+ *  used to extract the intended street name when Nominatim returns a POI
+ *  whose address.road doesn't match. */
+export async function resolveFromGeocode(
+  result: NominatimResult,
+  originalQuery?: string,
+): Promise<ResolvedBlock | null> {
   const lat = parseFloat(result.lat);
   const lng = parseFloat(result.lon);
 
-  // Find nearby CSCL segments
+  // Determine the best street name to match against
+  const streetFromAddress = result.address?.road ?? result.display_name;
+  const parsed = parseQuery(originalQuery ?? '');
+
+  // Find nearby CSCL segments — expand radius if the intended street isn't found
   let segments = await fetchSegmentsInRadius(lat, lng, 150);
-  if (segments.length === 0) {
+  const targetStreet = parsed?.street || streetFromAddress;
+  const hasStreetMatch = segments.some(
+    (seg) => streetSimilarity(targetStreet, seg.full_street_name || '') >= 0.8,
+  );
+  if (segments.length === 0 || !hasStreetMatch) {
     segments = await fetchSegmentsInRadius(lat, lng, 300);
   }
   if (segments.length === 0) return null;
-
-  // Score by distance + street name similarity
-  const streetFromAddress = result.address?.road ?? result.display_name;
+  const houseNum = parsed?.houseNum
+    ? parseInt(parsed.houseNum, 10)
+    : result.address?.house_number
+      ? parseInt(result.address.house_number, 10)
+      : NaN;
 
   const scored = segments
     .filter((seg) => seg.the_geom)
     .map((seg) => {
       const center = getSegmentCenter(seg);
       const distance = haversine([lat, lng], center);
-      const nameSim = streetSimilarity(streetFromAddress, seg.full_street_name || '');
-      const score = nameSim * 100 - distance * 0.5;
+      const segName = seg.full_street_name || '';
+
+      // Name similarity: take the best of Nominatim road vs user's query
+      let nameSim = streetSimilarity(streetFromAddress, segName);
+      if (parsed?.street) {
+        const querySim = streetSimilarity(parsed.street, segName);
+        nameSim = Math.max(nameSim, querySim);
+      }
+
+      // House number bonus: strongly prefer segments containing the address
+      let houseBonus = 0;
+      if (!isNaN(houseNum) && houseNumberInRange(houseNum, seg)) {
+        houseBonus = 50;
+      }
+
+      const score = nameSim * 100 + houseBonus - distance * 0.5;
       return { segment: seg, score, distance };
     });
 
@@ -90,9 +157,10 @@ export async function resolveFromGeocode(result: NominatimResult): Promise<Resol
   const seg = match.segment;
   const streetName = seg.full_street_name || seg.stname_label || 'Unknown street';
   const neighborhood = result.address?.suburb || result.address?.neighbourhood || '';
+  const housePrefix = result.address?.house_number ? `${result.address.house_number} ` : '';
   const displayAddress = neighborhood
-    ? `${streetName}, ${neighborhood}`
-    : streetName;
+    ? `${housePrefix}${streetName}, ${neighborhood}`
+    : `${housePrefix}${streetName}`;
 
   return {
     address: displayAddress,

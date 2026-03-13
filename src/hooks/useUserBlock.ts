@@ -116,12 +116,12 @@ export function useUserBlock() {
 
   /** Select block from address search (geocoded result) */
   const selectFromGeocode = useCallback(
-    async (result: NominatimResult) => {
+    async (result: NominatimResult, originalQuery?: string) => {
       setLoading(true);
       setError(null);
 
       try {
-        const resolved = await resolveFromGeocode(result);
+        const resolved = await resolveFromGeocode(result, originalQuery);
         if (!resolved) {
           setError('Could not find a street segment for this address.');
           setLoading(false);
