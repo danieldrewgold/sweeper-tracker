@@ -16,9 +16,19 @@ export function parseSignDescription(sign: AspSign): ParsedSchedule[] {
   // Must be a sanitation/broom sign
   if (!/(?:BROOM|SANITATION)/i.test(desc)) return [];
 
-  // Extract all day names
+  // Extract all day names, handling "EXCEPT <day>" patterns
   const upperDesc = desc.toUpperCase();
-  const days = DAY_NAMES.filter((d) => upperDesc.includes(d));
+
+  // Check for "EXCEPT SUNDAY" (or other "EXCEPT <day>") patterns first
+  // These mean "every day EXCEPT the named day"
+  const exceptMatch = upperDesc.match(/EXCEPT\s+(MONDAY|TUESDAY|WEDNESDAY|THURSDAY|FRIDAY|SATURDAY|SUNDAY)/);
+  let days: string[];
+  if (exceptMatch) {
+    const excludedDay = exceptMatch[1];
+    days = DAY_NAMES.filter((d) => d !== excludedDay);
+  } else {
+    days = DAY_NAMES.filter((d) => upperDesc.includes(d));
+  }
   if (days.length === 0) return [];
 
   // Extract time range (first two time-like tokens)
