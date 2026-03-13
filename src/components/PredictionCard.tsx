@@ -460,7 +460,9 @@ export default function PredictionCard() {
                     const rate = sweepReliability.dowSkipRates![i];
                     if (rate < 0) return null;
                     const sweepPct = 100 - rate;
-                    const notScheduled = sweepPct <= 5;
+                    // Use ASP schedule to determine if this day is scheduled, not GPS activity
+                    const isOnAspSchedule = aspDays.has(i);
+                    const notScheduled = aspDays.size > 0 ? !isOnAspSchedule : sweepPct <= 5;
                     const isCurrentDay = i === todayDowIdx;
                     const color = notScheduled ? 'gray' : sweepPct >= 80 ? 'green' : sweepPct >= 40 ? 'yellow' : 'red';
                     return (
