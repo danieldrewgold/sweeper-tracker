@@ -178,6 +178,17 @@ export default function PredictionCard() {
     ? missedAspDays.every((d) => sweepReliability.dowSkipRates![d] >= 100)
     : false;
 
+  // Correct the overall skip rate to only count ASP-scheduled days
+  // (the raw skip rate may include non-ASP day sweeps that inflate it)
+  const correctedSkipRate = (() => {
+    if (!sweepReliability?.dowSkipRates || aspDays.size === 0) return sweepReliability?.skipRate ?? 0;
+    const aspDayRates = [...aspDays]
+      .map((d) => sweepReliability.dowSkipRates![d])
+      .filter((r) => r >= 0);
+    if (aspDayRates.length === 0) return sweepReliability.skipRate;
+    return Math.round(aspDayRates.reduce((a, b) => a + b, 0) / aspDayRates.length);
+  })();
+
   // Today's DOW index (Mon=0 .. Fri=4, weekend=-1)
   const todayDowIdx = todayDow >= 1 && todayDow <= 5 ? todayDow - 1 : -1;
 
@@ -439,17 +450,17 @@ export default function PredictionCard() {
             <Box px={1}>
               <HStack spacing={2} mb={1} flexWrap="wrap">
                 <Badge
-                  colorScheme={sweepReliability.skipRate <= 10 ? 'green' : sweepReliability.skipRate <= 50 ? 'yellow' : 'red'}
+                  colorScheme={correctedSkipRate <= 10 ? 'green' : correctedSkipRate <= 50 ? 'yellow' : 'red'}
                   fontSize="xs"
                 >
-                  {sweepReliability.skipRate <= 10 ? 'Reliable route' : sweepReliability.skipRate <= 50 ? 'Sometimes skipped' : 'Often skipped'}
+                  {correctedSkipRate <= 10 ? 'Reliable route' : correctedSkipRate <= 50 ? 'Sometimes skipped' : 'Often skipped'}
                 </Badge>
                 <Text fontSize="xs" color="gray.500">
-                  ~{Math.round(100 - sweepReliability.skipRate)}% of ASP days ({sweepReliability.totalDays} days)
+                  ~{Math.round(100 - correctedSkipRate)}% of ASP days ({sweepReliability.totalDays} days)
                   <InfoTip detail={`Tracked over ${sweepReliability.totalDays} scheduled ASP days using NYC sweeper GPS data (Jun 2025–Jan 2026). Shows what % of days the sweeper actually showed up on this block.`} />
                 </Text>
               </HStack>
-              {sweepReliability.totalTickets > 0 && sweepReliability.skipRate > 30 && (
+              {sweepReliability.totalTickets > 0 && correctedSkipRate > 30 && (
                 <Text fontSize="xs" color="red.600" mb={1}>
                   {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block last year
                 </Text>
