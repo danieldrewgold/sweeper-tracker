@@ -112,18 +112,19 @@ def load_reliability_with_dow():
 
         dow_rates = []
         for dow in range(5):
-            if dow_total[dow] > 0:
+            if dow_total[dow] > 0 and dow_swept[dow] > 0:
+                # Sweeper has come at least once on this day — it's a real sweeping day
                 rate = round(100 * (1 - dow_swept[dow] / dow_total[dow]), 0)
                 dow_rates.append(int(rate))
             else:
+                # Sweeper has NEVER come on this day — not a sweeping day, mark as N/A
                 dow_rates.append(-1)
 
         valid_rates = [r for r in dow_rates if r >= 0]
         has_pattern = valid_rates and (max(valid_rates) - min(valid_rates)) > 20
 
-        # Compute skip rate only over ASP-scheduled days (>10% sweep rate)
-        # so the overall % naturally matches the per-day percentages
-        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] / dow_total[dow] > 0.10}
+        # Scheduled days = days the sweeper has actually visited at least once
+        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] > 0}
         if scheduled_days:
             sched_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
             sched_swept = sum(1 for d in swept if d.weekday() < 5 and d.weekday() in scheduled_days and d in set(weekday_dates))
@@ -159,15 +160,15 @@ def load_reliability_with_dow():
 
         dow_rates = []
         for dow in range(5):
-            if dow_total[dow] > 0:
+            if dow_total[dow] > 0 and dow_swept[dow] > 0:
                 rate = round(100 * (1 - dow_swept[dow] / dow_total[dow]), 0)
                 dow_rates.append(int(rate))
             else:
                 dow_rates.append(-1)
 
-        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] / dow_total[dow] > 0.10}
+        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] > 0}
         if not scheduled_days:
-            scheduled_days = set(range(5))
+            continue  # No GPS visits at all — skip this segment
 
         scheduled_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
         scheduled_swept = sum(1 for d in dates if d.weekday() < 5 and d.weekday() in scheduled_days)

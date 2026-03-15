@@ -51,6 +51,28 @@ export async function fetchSegmentById(physicalId: string): Promise<CsclSegment 
   return segment;
 }
 
+/** Search CSCL by street name (exact match on full_street_name).
+ *  Used when Nominatim geocodes to the wrong part of a long street. */
+export async function fetchSegmentsByStreetName(
+  streetName: string,
+  limit = 200
+): Promise<CsclSegment[]> {
+  const key = `street:${streetName.toUpperCase()}`;
+
+  const cached = await cacheGet<CsclSegment[]>('cscl-segments', key);
+  if (cached) return cached;
+
+  const results = await sodaFetch<CsclSegment[]>(CSCL_API, {
+    $where: `upper(full_street_name)='${escapeSoql(streetName.toUpperCase())}'`,
+    $limit: String(limit),
+  });
+
+  if (results.length > 0) {
+    cacheSet('cscl-segments', key, results, CSCL_TTL);
+  }
+  return results;
+}
+
 export async function fetchSegmentsByIds(physicalIds: string[]): Promise<CsclSegment[]> {
   if (physicalIds.length === 0) return [];
 

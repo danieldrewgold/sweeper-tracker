@@ -20,11 +20,37 @@ const BORO_MAP: Record<string, string> = {
   '5': 'Staten Island',
 };
 
+/** Extract the lowest house number from a CSCL segment for display.
+ *  Returns e.g. "139-01" or "503" or empty string if no house numbers. */
+function getApproxAddress(segment: CsclSegment): string {
+  const candidates: string[] = [];
+  for (const field of [segment.l_low_hn, segment.r_low_hn]) {
+    if (field && field !== '0') {
+      const trimmed = String(field).trim();
+      if (trimmed && trimmed !== '0') candidates.push(trimmed);
+    }
+  }
+  if (candidates.length === 0) return '';
+  // Pick the lowest house number for display
+  candidates.sort((a, b) => {
+    const numA = parseInt(a.replace(/-.*/, ''), 10);
+    const numB = parseInt(b.replace(/-.*/, ''), 10);
+    return numA - numB;
+  });
+  // Clean up leading zeros in hyphenated form: "139-001" → "139-01"
+  const raw = candidates[0];
+  const m = raw.match(/^(\d+)-0*(\d+)$/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}`;
+  return raw;
+}
+
 /** Build a display address from a CSCL segment */
 function buildAddress(segment: CsclSegment): string {
   const streetName = segment.full_street_name || segment.stname_label || 'Unknown street';
   const boroName = BORO_MAP[segment.boroughcode] ?? '';
-  return boroName ? `${streetName}, ${boroName}` : streetName;
+  const approx = getApproxAddress(segment);
+  const prefix = approx ? `${approx} ` : '';
+  return boroName ? `${prefix}${streetName}, ${boroName}` : `${prefix}${streetName}`;
 }
 
 export function useUserBlock() {

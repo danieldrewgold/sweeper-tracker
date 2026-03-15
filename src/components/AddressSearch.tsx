@@ -35,6 +35,47 @@ interface Props {
 
 const HAS_GEOLOCATION = typeof navigator !== 'undefined' && 'geolocation' in navigator;
 
+/** Get the best neighborhood name from a Nominatim result.
+ *  Prefer neighbourhood/quarter (specific) over suburb (often just "Queens"/"Brooklyn"). */
+function getNeighborhood(r: NominatimResult): string {
+  const addr = r.address;
+  if (!addr) return '';
+  // Nominatim uses "neighbourhood" for small areas, "quarter" for mid-size (Elmhurst, etc.)
+  // "suburb" is often the borough name in NYC (Queens, Brooklyn) — not useful
+  return (addr as Record<string, string | undefined>).quarter
+    || addr.neighbourhood
+    || addr.suburb
+    || '';
+}
+
+/** Check if a search query contains a leading house number */
+function queryHasHouseNumber(q: string): boolean {
+  return /^\d+[-\d]*\s+\S/.test(q.trim());
+}
+
+/** De-duplicate Nominatim results — when multiple results share the same road name,
+ *  keep only unique neighbourhoods so the user can distinguish them. */
+function deduplicateResults(results: NominatimResult[]): NominatimResult[] {
+  const seen = new Map<string, Set<string>>();
+  const deduped: NominatimResult[] = [];
+
+  for (const r of results) {
+    const road = (r.address?.road ?? r.display_name.split(',')[0]).toUpperCase().trim();
+    const hood = getNeighborhood(r).toUpperCase().trim();
+    const key = road;
+
+    if (!seen.has(key)) {
+      seen.set(key, new Set());
+    }
+    const hoods = seen.get(key)!;
+    if (!hoods.has(hood)) {
+      hoods.add(hood);
+      deduped.push(r);
+    }
+  }
+  return deduped;
+}
+
 export default function AddressSearch({ onSelect }: Props) {
   const [query, setQuery] = useState('');
   const userAddress = useSweepStore((s) => s.userAddress);
@@ -64,8 +105,26 @@ export default function AddressSearch({ onSelect }: Props) {
       }
       setIsSearching(true);
       try {
-        const res = await geocodeSearch(q);
-        setResults(res);
+        const raw = await geocodeSearch(q);
+        const deduped = deduplicateResults(raw);
+
+        // If user typed a specific address (with house number) and all results
+        // are for the same street, auto-select the first one — the address resolver
+        // will find the correct CSCL segment using the house number.
+        if (queryHasHouseNumber(q) && deduped.length >= 1) {
+          const roads = new Set(deduped.map(r =>
+            (r.address?.road ?? '').toUpperCase().replace(/\s+/g, ' ').trim()
+          ));
+          if (roads.size === 1) {
+            // All results are the same street — auto-resolve
+            setResults([]);
+            setShowResults(false);
+            handleSelect(deduped[0], q);
+            return;
+          }
+        }
+
+        setResults(deduped);
         setShowResults(true);
       } catch (err) {
         console.error('Geocode failed:', err);
@@ -73,6 +132,7 @@ export default function AddressSearch({ onSelect }: Props) {
         setIsSearching(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -83,16 +143,16 @@ export default function AddressSearch({ onSelect }: Props) {
     timerRef.current = setTimeout(() => doSearch(val), 600);
   };
 
-  const handleSelect = (result: NominatimResult) => {
+  const handleSelect = (result: NominatimResult, currentQuery?: string) => {
     const houseNum = result.address?.house_number ?? '';
     const road = result.address?.road ?? result.display_name.split(',')[0];
-    const area = result.address?.suburb || result.address?.neighbourhood || '';
+    const area = getNeighborhood(result);
     const prefix = houseNum ? `${houseNum} ` : '';
     setQuery(area ? `${prefix}${road}, ${area}` : `${prefix}${road}`);
     setShowResults(false);
     setResults([]);
     setHighlightedIndex(-1);
-    onSelect(result, query);
+    onSelect(result, currentQuery ?? query);
   };
 
   const handleClear = () => {
@@ -208,27 +268,46 @@ export default function AddressSearch({ onSelect }: Props) {
             borderRadius="md"
             mt={1}
             zIndex={2000}
-            maxH="200px"
+            maxH="260px"
             overflowY="auto"
             role="listbox"
           >
-            {results.map((r, index) => (
-              <ListItem
-                key={r.place_id}
-                px={3}
-                py={2}
-                cursor="pointer"
-                bg={index === highlightedIndex ? 'orange.50' : undefined}
-                _hover={{ bg: 'orange.50' }}
-                onClick={() => handleSelect(r)}
-                role="option"
-                aria-selected={index === highlightedIndex}
-              >
-                <Text fontSize="sm" noOfLines={1}>
-                  {r.display_name}
-                </Text>
-              </ListItem>
-            ))}
+            {results.map((r, index) => {
+              // Build a cleaner display: street, neighbourhood
+              const road = r.address?.road ?? r.display_name.split(',')[0];
+              const houseNum = r.address?.house_number;
+              const hood = getNeighborhood(r);
+              const prefix = houseNum ? `${houseNum} ` : '';
+              const mainText = `${prefix}${road}`;
+              // Show neighbourhood + zip for context
+              const subParts = [hood, r.address?.postcode].filter(Boolean);
+              const subText = subParts.join(' \u00B7 '); // middle dot separator
+
+              return (
+                <ListItem
+                  key={r.place_id}
+                  px={3}
+                  py={2}
+                  cursor="pointer"
+                  bg={index === highlightedIndex ? 'orange.50' : undefined}
+                  _hover={{ bg: 'orange.50' }}
+                  onClick={() => handleSelect(r)}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                  borderBottom="1px"
+                  borderColor="gray.100"
+                >
+                  <Text fontSize="sm" fontWeight="500" lineHeight="1.4" noOfLines={2}>
+                    {mainText}
+                  </Text>
+                  {subText && (
+                    <Text fontSize="xs" color="gray.500" mt={0.5}>
+                      {subText}
+                    </Text>
+                  )}
+                </ListItem>
+              );
+            })}
           </List>
         )}
       </Box>
