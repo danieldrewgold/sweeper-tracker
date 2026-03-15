@@ -90,8 +90,8 @@ export default function DataFactsPage() {
             NYC Tickets Blocks That Were Never Swept
           </Heading>
           <Text fontSize={{ base: 'md', md: 'lg' }} color="gray.600" maxW="2xl">
-            We cross-referenced 1M+ parking tickets against DSNY's own GPS records.
-            Here's what we found.
+            We cross-referenced 728K+ parking tickets against DSNY's own sweeper GPS records
+            across 18,029 street segments. Here's what we found.
           </Text>
           <Badge colorScheme="gray" fontSize="xs" px={2} py={1} borderRadius="md">
             Data: {META.dataRange}
@@ -187,27 +187,30 @@ export default function DataFactsPage() {
             The Aggregate Picture
           </Heading>
           <Text fontSize="sm" color="gray.700" lineHeight="tall" mb={4}>
-            Across 6,446 verified single-block segments where GPS matching is proven to work,
-            15.1% of ASP tickets were issued on days when zero sweeper GPS was detected for
-            that block. The no-sweep rate is consistent across all four boroughs, ranging from
-            13.5% in Queens to 18.7% in the Bronx.
+            Across 18,029 verified segments, 17.9% of ASP tickets (130,751 out of 728,557)
+            were issued on days when zero sweeper GPS was detected for that block. Queens has
+            the highest rate at 28.2%, while Manhattan has the lowest at 14.0%.
           </Text>
           <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3}>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
+              <Text fontSize="lg" fontWeight="bold" color="gray.800">Queens</Text>
+              <Text fontSize="xs" color="gray.600">28.2% no-sweep rate</Text>
+              <Text fontSize="2xs" color="gray.400">42,961 tickets</Text>
+            </Box>
+            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Bronx</Text>
-              <Text fontSize="xs" color="gray.600">18.7% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">18.1% no-sweep rate</Text>
+              <Text fontSize="2xs" color="gray.400">16,574 tickets</Text>
             </Box>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Brooklyn</Text>
-              <Text fontSize="xs" color="gray.600">15.5% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">15.2% no-sweep rate</Text>
+              <Text fontSize="2xs" color="gray.400">43,596 tickets</Text>
             </Box>
             <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
               <Text fontSize="lg" fontWeight="bold" color="gray.800">Manhattan</Text>
-              <Text fontSize="xs" color="gray.600">14.9% no-sweep rate</Text>
-            </Box>
-            <Box bg="gray.50" borderRadius="md" p={3} textAlign="center">
-              <Text fontSize="lg" fontWeight="bold" color="gray.800">Queens</Text>
-              <Text fontSize="xs" color="gray.600">13.5% no-sweep rate</Text>
+              <Text fontSize="xs" color="gray.600">14.0% no-sweep rate</Text>
+              <Text fontSize="2xs" color="gray.400">27,620 tickets</Text>
             </Box>
           </SimpleGrid>
           <Box

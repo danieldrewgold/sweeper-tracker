@@ -22,67 +22,91 @@ export interface PrecinctRow {
 
 export const HEADLINE_STATS: HeadlineStat[] = [
   {
-    value: '40,894',
+    value: '130,751',
     label: 'Tickets on unswept blocks',
-    detail: 'Issued on verified single-block segments with zero sweeper GPS that day',
+    detail: 'Issued on days with zero sweeper GPS activity for that block',
     color: 'red.500',
   },
   {
-    value: '~$2.66M',
+    value: '~$8.5M',
     label: 'Fines on unswept blocks',
-    detail: 'At $65/ticket — revenue from blocks the sweeper never visited',
+    detail: 'At $65/ticket \u2014 revenue from blocks the sweeper never visited that day',
     color: 'orange.400',
   },
   {
-    value: '225,122',
+    value: '597,806',
     label: 'Tickets with confirmed sweeps',
-    detail: 'Sweeper GPS proves the truck was there — the system works most of the time',
+    detail: 'Sweeper GPS proves the truck was there \u2014 the system works most of the time',
     color: 'green.500',
   },
   {
-    value: '6,446',
+    value: '18,029',
     label: 'Verified block segments',
-    detail: 'Single-precinct blocks where GPS matching is proven to work in both directions',
+    detail: 'Segments with ticket data cross-referenced against sweeper GPS records',
     color: 'blue.500',
   },
 ];
 
 export const CASE_STUDIES: CaseStudy[] = [
   {
-    title: 'Waverly Ave, Brooklyn \u2014 One Block Skipped on a Well-Swept Street',
-    borough: 'Brooklyn',
+    title: 'Jamaica Ave near 198th St, Queens \u2014 4,498 Tickets, Sweeper Skips 61%',
+    borough: 'Queens',
     description:
-      'Waverly Ave in Fort Greene has verified blocks in Precinct 88. Neighboring blocks are swept reliably with 3\u20136% skip rates. But one block (houses 382\u2013450) is skipped 86% of the time \u2014 with 78 tickets issued on days the sweeper never came, and only 13 confirmed sweeps over 8 months.',
+      'This short Jamaica Ave block in Hollis is the single highest-ticketed segment in the entire dataset. The sweeper is scheduled Mon\u2013Sat but skips 61% of the time. Mondays, Wednesdays, and Fridays are the worst \u2014 skipped over 73% of the time. 4,498 tickets were issued over 10 months, an estimated $292K in fines.',
     stats: [
-      { label: 'Skip rate (this block)', value: '85.7%', color: 'red.500' },
-      { label: 'Neighbor blocks', value: '3\u20136% skip', color: 'green.500' },
-      { label: 'Tickets on skip days', value: '78', color: 'red.500' },
+      { label: 'Skip rate', value: '61.1%', color: 'red.500' },
+      { label: 'Tickets issued', value: '4,498', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '183', color: 'blue.500' },
     ],
-    highlight: 'Neighbor blocks swept 95%+ of the time, one block skipped 86%. Same street, same precinct, same sweeper route.',
+    highlight: 'Mon=83% skip, Tue=41%, Wed=73%, Thu=42%, Fri=81%, Sat=47%. The sweeper alternates between showing up and not, but MWF are nearly phantom routes.',
   },
   {
-    title: 'Clay St, Brooklyn \u2014 One Block Skipped, Next Block Swept',
-    borough: 'Brooklyn',
+    title: 'Queens Blvd near 90th St, Elmhurst \u2014 Wednesday & Saturday Nearly Always Skipped',
+    borough: 'Queens',
     description:
-      'Clay Street in Greenpoint has 2 verified blocks in Precinct 94. The block from houses 88\u2013116 is swept reliably with an 11% skip rate and 93 confirmed sweeps. But the adjacent block (houses 14\u201385) is skipped 82% of the time \u2014 92 tickets on days the sweeper never came, and only 20 confirmed sweeps over 8 months.',
+      'One of NYC\'s busiest boulevards. This block racks up 277 tickets while being skipped 67% of the time. Wednesday and Saturday sweeps are nearly phantom \u2014 98% and 94% skip rates respectively. Other days fare only marginally better.',
     stats: [
-      { label: 'Skip rate (this block)', value: '82.1%', color: 'red.500' },
-      { label: 'Adjacent block', value: '11.4% skip', color: 'green.500' },
-      { label: 'Tickets on skip days', value: '92', color: 'red.500' },
+      { label: 'Skip rate', value: '67.1%', color: 'red.500' },
+      { label: 'Tickets issued', value: '277', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '139', color: 'blue.500' },
     ],
-    highlight: 'Two blocks on the same street, same precinct. One swept 89% of the time, the other skipped 82%. 92 tickets at $65 = $5,980 in fines on a block the sweeper rarely visited.',
+    highlight: 'Mon=70%, Tue=52%, Wed=98%, Thu=47%, Fri=42%, Sat=94%. Wednesday and Saturday the sweeper essentially never comes despite residents being required to move their cars.',
   },
   {
-    title: 'E 103rd St, Manhattan \u2014 93% Skipped While Neighbors Get Swept',
+    title: 'Mulberry St, Little Italy \u2014 Tourist Corridor, 92% Thursday Skip Rate',
     borough: 'Manhattan',
     description:
-      'East 103rd Street in East Harlem has 4 verified blocks in Precinct 23. Three neighboring blocks (houses 102\u2013351) are swept reliably with 6\u201310% skip rates and over 150 combined confirmed sweeps. But one block (houses 2\u201334) is skipped 93% of the time \u2014 66 tickets on days the sweeper never came, and only 5 confirmed sweeps.',
+      'In the heart of Little Italy, this Mulberry St block has a 30-minute daily ASP window (8\u20138:30AM, except Sunday). The sweeper reliably comes on Fridays (72%) but nearly never on Thursdays (8%) or Mondays (11%). 122 tickets issued over 10 months. Adjacent blocks are swept on Saturday but this one is skipped.',
     stats: [
-      { label: 'Skip rate (this block)', value: '93.0%', color: 'red.500' },
-      { label: 'Three neighbor blocks', value: '6\u201310% skip', color: 'green.500' },
-      { label: 'Tickets on skip days', value: '66', color: 'red.500' },
+      { label: 'Skip rate', value: '70.5%', color: 'red.500' },
+      { label: 'Tickets issued', value: '122', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '129', color: 'blue.500' },
     ],
-    highlight: 'Same street, same precinct. Three blocks swept reliably, one block skipped 93%. 66 tickets at $65 each = $4,290 in fines on a block the sweeper never visited.',
+    highlight: 'Mon=89%, Tue=44%, Wed=83%, Thu=92%, Fri=28%, Sat=87%. The sweeper literally sweeps the next block on Saturday and skips this one.',
+  },
+  {
+    title: 'E Tremont Ave, Bronx \u2014 93% Skip Rate, Swept Only 34 Times in 10 Months',
+    borough: 'Bronx',
+    description:
+      'A segment on East Tremont Avenue with the highest overall skip rate among ticketed blocks. Skipped nearly every day of the week across all 6 sweep days. Only 34 GPS visits recorded over 319 days of tracking, yet 46 tickets were still written.',
+    stats: [
+      { label: 'Skip rate', value: '92.8%', color: 'red.500' },
+      { label: 'Tickets issued', value: '46', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '34', color: 'blue.500' },
+    ],
+    highlight: 'Mon=98%, Tue=96%, Wed=96%, Thu=98%, Fri=98%, Sat=70%. Every weekday is skipped 96\u201398% of the time. Saturday is the "best" day at 70% skip.',
+  },
+  {
+    title: 'Greene Ave, Fort Greene, Brooklyn \u2014 Skipped More Than Swept',
+    borough: 'Brooklyn',
+    description:
+      'A residential Fort Greene block with only two scheduled sweep days, both heavily skipped. The sweeper shows up less than half the time on either day. 42 tickets issued despite the unreliable service.',
+    stats: [
+      { label: 'Skip rate', value: '63.0%', color: 'red.500' },
+      { label: 'Tickets issued', value: '42', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '62', color: 'blue.500' },
+    ],
+    highlight: 'Mon=52% skip, Tue=74% skip. Only 2 sweep days per week, and the sweeper skips both more often than not. 42 tickets at $65 = $2,730 in fines on a block that gets spotty service.',
   },
 ];
 
@@ -155,11 +179,11 @@ export const PRECINCT_DATA: PrecinctRow[] = [
 
 export const META = {
   dataRange: 'June 2025 \u2013 March 2026',
-  totalSegments: 6446,
-  confirmedSweepTickets: 225122,
-  source: 'NYC Open Data (DSNY Mechanical Broom GPS dataset c23c-uwsm, DOF Parking Violations dataset pvqr-7yc4)',
+  totalSegments: 18029,
+  confirmedSweepTickets: 597806,
+  source: 'NYC Open Data (DSNY Mechanical Broom GPS dataset c23c-uwsm, DOF Parking Violations dataset pvqr-7yc4, CSCL Centerline inkn-q76z)',
   methodology:
-    'We cross-referenced 1M+ parking tickets against DSNY\u2019s own GPS records. A "no sweep" classification means zero GPS from any DSNY mechanical broom was associated with that street segment for the entire day. The GPS device is on the truck itself \u2014 if the truck drove down a block, it would register.',
+    'We cross-referenced 728K+ parking tickets against DSNY\u2019s own GPS records across 18,029 street segments. A "no sweep" classification means zero GPS from any DSNY mechanical broom was detected on that street segment for the entire day. The GPS device is on the truck itself \u2014 if the truck drove down a block, it would register. Day-of-week analysis uses 319 days of data (Mon\u2013Sat) to identify which specific days are routinely skipped.',
   dataCleaning:
-    'We applied the strictest possible filters: (1) Only single-block segments with tight house number ranges (under 200) and a single police precinct. (2) Only segments where GPS matching is proven to work in BOTH directions \u2014 meaning the same segment has days with confirmed sweeper GPS AND days with zero GPS. This eliminates segments with broken ticket-to-street mapping. (3) Minimum 5 tickets per segment to avoid flukes. (4) Tickets must fall within the CSCL centerline\u2019s official house number range for the segment \u2014 no fallback matching. (5) Tiny segments (house range under 30) are reclassified as swept when adjacent blocks on the same street show confirmed sweeps that day \u2014 GPS pings too infrequently to register on very short blocks. After this filtering, 6,446 out of 20,000+ segments remain.',
+    'Tickets are matched to CSCL centerline segments using street name and house number ranges. GPS sweep records are matched by physical_id. Skip rates are computed only over days-of-week where the sweeper has been observed at least once (eliminating false 0% rates on non-scheduled days). Segments with fewer than 10 GPS observations are excluded from sweep-only analysis.',
 };
