@@ -92,9 +92,10 @@ def load_reliability_with_dow():
         except (ValueError, KeyError):
             continue
 
-    weekday_dates = sorted(d for d in all_sweep_dates if d.weekday() < 5)
+    # Include Mon-Sat (weekday 0-5); some blocks have "EXCEPT SUNDAY" ASP signs
+    weekday_dates = sorted(d for d in all_sweep_dates if d.weekday() < 6)
     print(f"  Unique swept segments: {len(swept_dates)}")
-    print(f"  Total weekday dates: {len(weekday_dates)}")
+    print(f"  Total Mon-Sat dates: {len(weekday_dates)}")
 
     # 3. Build reliability data
     data = {}
@@ -111,7 +112,7 @@ def load_reliability_with_dow():
                 dow_swept[dow] += 1
 
         dow_rates = []
-        for dow in range(5):
+        for dow in range(6):
             if dow_total[dow] > 0 and dow_swept[dow] > 0:
                 # Sweeper has come at least once on this day — it's a real sweeping day
                 rate = round(100 * (1 - dow_swept[dow] / dow_total[dow]), 0)
@@ -124,10 +125,10 @@ def load_reliability_with_dow():
         has_pattern = valid_rates and (max(valid_rates) - min(valid_rates)) > 20
 
         # Scheduled days = days the sweeper has actually visited at least once
-        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] > 0}
+        scheduled_days = {dow for dow in range(6) if dow_total[dow] > 0 and dow_swept[dow] > 0}
         if scheduled_days:
             sched_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
-            sched_swept = sum(1 for d in swept if d.weekday() < 5 and d.weekday() in scheduled_days and d in set(weekday_dates))
+            sched_swept = sum(1 for d in swept if d.weekday() < 6 and d.weekday() in scheduled_days and d in set(weekday_dates))
             skip_rate = round(100 * (1 - sched_swept / sched_total), 1) if sched_total > 0 else info['skip_rate']
             total_days = sched_total
         else:
@@ -146,7 +147,7 @@ def load_reliability_with_dow():
     for pid, dates in swept_dates.items():
         if pid in csv_segments or pid == '':
             continue
-        swept_weekdays = sum(1 for d in dates if d.weekday() < 5)
+        swept_weekdays = sum(1 for d in dates if d.weekday() < 6)
         if swept_weekdays < 10:
             continue
 
@@ -159,19 +160,19 @@ def load_reliability_with_dow():
                 dow_swept[dow] += 1
 
         dow_rates = []
-        for dow in range(5):
+        for dow in range(6):
             if dow_total[dow] > 0 and dow_swept[dow] > 0:
                 rate = round(100 * (1 - dow_swept[dow] / dow_total[dow]), 0)
                 dow_rates.append(int(rate))
             else:
                 dow_rates.append(-1)
 
-        scheduled_days = {dow for dow in range(5) if dow_total[dow] > 0 and dow_swept[dow] > 0}
+        scheduled_days = {dow for dow in range(6) if dow_total[dow] > 0 and dow_swept[dow] > 0}
         if not scheduled_days:
             continue  # No GPS visits at all — skip this segment
 
         scheduled_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
-        scheduled_swept = sum(1 for d in dates if d.weekday() < 5 and d.weekday() in scheduled_days)
+        scheduled_swept = sum(1 for d in dates if d.weekday() < 6 and d.weekday() in scheduled_days)
         skip_rate = round(100 * (1 - scheduled_swept / scheduled_total), 1) if scheduled_total > 0 else 0.0
 
         valid_rates = [r for r in dow_rates if r >= 0]

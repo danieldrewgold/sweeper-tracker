@@ -161,7 +161,7 @@ export default function PredictionCard() {
   const isSafeToPark = wasSwept && latestRisk !== null && nowMinutes > latestRisk;
 
   // Cross-reference ASP schedule days with reliability DOW data
-  const DOW_MAP: Record<string, number> = { MONDAY: 0, TUESDAY: 1, WEDNESDAY: 2, THURSDAY: 3, FRIDAY: 4 };
+  const DOW_MAP: Record<string, number> = { MONDAY: 0, TUESDAY: 1, WEDNESDAY: 2, THURSDAY: 3, FRIDAY: 4, SATURDAY: 5 };
   const aspDays = new Set(aspSchedules.map((s) => DOW_MAP[s.day]).filter((d) => d !== undefined));
   const reliabilityDays = sweepReliability?.dowSkipRates
     ? sweepReliability.dowSkipRates.reduce<Set<number>>((acc, rate, i) => {
@@ -173,7 +173,7 @@ export default function PredictionCard() {
   const missedAspDays = reliabilityDays && aspDays.size > 0
     ? [...aspDays].filter((d) => !reliabilityDays.has(d))
     : [];
-  const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const allMissedAreZero = missedAspDays.length > 0 && sweepReliability?.dowSkipRates
     ? missedAspDays.every((d) => sweepReliability.dowSkipRates![d] >= 100)
     : false;
@@ -194,16 +194,16 @@ export default function PredictionCard() {
     return Math.round(aspDayRates.reduce((a, b) => a + b, 0) / aspDayRates.length);
   })();
 
-  // Today's DOW index (Mon=0 .. Fri=4, weekend=-1)
-  const todayDowIdx = todayDow >= 1 && todayDow <= 5 ? todayDow - 1 : -1;
+  // Today's DOW index (Mon=0 .. Sat=5, Sunday=-1)
+  const todayDowIdx = todayDow >= 1 && todayDow <= 6 ? todayDow - 1 : -1;
 
   // Classify today's sweep status for the "waiting" state
   const DAY_FULL_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const isWeekend = todayDow === 0 || todayDow === 6;
+  const isSunday = todayDow === 0;
   const todaySkipRate = todayDowIdx >= 0 && sweepReliability?.dowSkipRates
     ? sweepReliability.dowSkipRates[todayDowIdx] : -1;
   const sweepDayStatus: 'weekend' | 'no_asp' | 'asp_but_rare' | 'normal' =
-    isWeekend ? 'weekend'
+    isSunday ? 'weekend'
     : !todaySchedule ? 'no_asp'
     : todaySkipRate >= 95 ? 'asp_but_rare'
     : 'normal';
@@ -214,7 +214,7 @@ export default function PredictionCard() {
     const aspDayNames = new Set(aspSchedules.map((s) => s.day));
     for (let offset = 1; offset <= 7; offset++) {
       const d = (todayDow + offset) % 7;
-      if (d === 0 || d === 6) continue; // skip weekends
+      if (d === 0) continue; // skip Sunday only
       const dayName = DAY_FULL_NAMES[d].toUpperCase();
       if (aspDayNames.has(dayName)) return DAY_FULL_NAMES[d];
     }
@@ -317,7 +317,7 @@ export default function PredictionCard() {
             {sweepDayStatus === 'weekend' && (
               <HStack spacing={2}>
                 <Icon as={InfoOutlineIcon} color="gray.400" boxSize={4} />
-                <Text fontSize="sm" color="gray.600">No sweeping on weekends</Text>
+                <Text fontSize="sm" color="gray.600">No sweeping on Sundays</Text>
               </HStack>
             )}
             {sweepDayStatus === 'no_asp' && (
@@ -390,7 +390,7 @@ export default function PredictionCard() {
         )}
 
         {/* Find parking — nearest swept street (only during weekday sweep hours) */}
-        {nearestSwept && !wasSwept && !isWeekend && nowMinutes < 17 * 60 && (
+        {nearestSwept && !wasSwept && !isSunday && nowMinutes < 17 * 60 && (
           <Box bg="blue.50" px={3} py={2} borderRadius="md">
             <Text fontSize="xs" color="blue.700" mb={1}>
               <Text as="span" fontWeight="medium">{nearestSwept.name || 'Nearby street'}</Text>
@@ -472,7 +472,7 @@ export default function PredictionCard() {
               )}
               {sweepReliability.dowSkipRates && (
                 <HStack spacing={1} mt={1}>
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, i) => {
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
                     const rate = sweepReliability.dowSkipRates![i];
                     if (rate < 0) return null;
                     const sweepPct = 100 - rate;
