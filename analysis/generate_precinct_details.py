@@ -336,9 +336,12 @@ def main():
         segs = by_precinct[prec]
         boro = segs[0]["boro"] if segs else ""
 
-        # Top 3 by skip-day tickets, require minimum 5
+        # Top 3 by skip-day tickets, require minimum 5 no-sweep tickets
+        # AND confirmed > 0 (to exclude side-of-street data artifacts where
+        # the sweeper services the opposite curb but never this one)
+        eligible = [s for s in segs if s["tickets_on_skip_days"] >= 5 and s.get("confirmed_tickets", 1) > 0]
         ranked = sorted(
-            [s for s in segs if s["tickets_on_skip_days"] >= 5],
+            eligible,
             key=lambda s: s["tickets_on_skip_days"],
             reverse=True
         )[:3]
