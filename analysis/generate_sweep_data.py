@@ -9,7 +9,8 @@ Output structure:
   "r": { physicalId: [skipRate, totalDays, tickets, dowSkipRates|null] },
   "i": { "street|boro": [median_min, q25, q75, count] },
   "p": { "street|boro": [after_rate, ticket_days] },
-  "d": { physicalId: days_count }
+  "d": { physicalId: days_count },
+  "meta": { "dowTotals": [monTotal, tueTotal, wedTotal, thuTotal, friTotal, satTotal] }
 }
 """
 
@@ -72,7 +73,7 @@ def load_reliability_with_dow():
         data = {}
         for pid, info in csv_segments.items():
             data[pid] = [info['skip_rate'], info['total_days'], info['tickets'], None]
-        return data
+        return data, None
 
     print("  Loading GPS data (this may take a moment)...")
     with open(SWEEP_PATH) as f:
@@ -184,9 +185,15 @@ def load_reliability_with_dow():
             entry[3] = None
             stripped += 1
 
+    # Compute per-DOW totals (how many Mondays, Tuesdays, etc. in the GPS date range)
+    dow_totals = [0] * 6
+    for d in weekday_dates:
+        dow_totals[d.weekday()] += 1
+
     print(f"  Sweep-only segments added: {sweep_only}")
     print(f"  Stripped DOW from {stripped} reliable segments")
-    return data
+    print(f"  DOW totals: {dow_totals}")
+    return data, dow_totals
 
 
 def load_inspector_timing():
@@ -245,7 +252,7 @@ def load_double_sweep():
 
 if __name__ == '__main__':
     print("Loading reliability data...")
-    reliability = load_reliability_with_dow()
+    reliability, dow_totals = load_reliability_with_dow()
 
     print("\nLoading pattern data...")
     inspector = load_inspector_timing()
@@ -263,6 +270,8 @@ if __name__ == '__main__':
         'p': post_sweep,
         'd': double_sweep,
     }
+    if dow_totals:
+        combined['meta'] = {'dowTotals': dow_totals}
 
     os.makedirs(os.path.dirname(OUT_FILE), exist_ok=True)
     with open(OUT_FILE, 'w') as f:

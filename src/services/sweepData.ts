@@ -5,6 +5,7 @@ interface SweepData {
   i: Record<string, [number, number, number, number]>;
   p: Record<string, [number, number]>;
   d: Record<string, number>;
+  meta?: { dowTotals: number[] };
 }
 
 let sweepData: SweepData | null = null;
@@ -101,6 +102,12 @@ export async function getPostSweepReturn(
     afterRate: entry[0],
     ticketDays: entry[1],
   };
+}
+
+/** Get per-DOW total observation counts (how many Mondays, Tuesdays, etc. in the GPS date range).
+ *  Synchronous — only works after sweepData.json is loaded. Returns null if no meta. */
+export function getDowTotalsSync(): number[] | null {
+  return sweepData?.meta?.dowTotals ?? null;
 }
 
 export async function getDoubleSweepInfo(physicalId: string): Promise<DoubleSweepInfo | null> {

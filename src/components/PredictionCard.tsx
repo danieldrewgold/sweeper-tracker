@@ -5,7 +5,7 @@ import { useSweepStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 import { getSegmentCenter, haversine } from '../utils/geo';
-import { getInspectorQ75Sync, getPostSweepReturnSync } from '../services/sweepData';
+import { getInspectorQ75Sync, getPostSweepReturnSync, getDowTotalsSync } from '../services/sweepData';
 
 /** Tappable info icon that toggles an explanation underneath */
 function InfoTip({ detail }: { detail: string }) {
@@ -469,42 +469,53 @@ export default function PredictionCard() {
                   {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block last year
                 </Text>
               )}
-              {(sweepReliability.dowSkipRates || aspDays.size > 0) && (
-                <HStack spacing={1} mt={1}>
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
-                    const rate = sweepReliability.dowSkipRates ? sweepReliability.dowSkipRates[i] : -1;
-                    const isOnAspSchedule = aspDays.has(i);
-                    const hasGpsData = rate >= 0;
-                    // Hide days that are neither on ASP schedule nor have GPS data
-                    if (!hasGpsData && !isOnAspSchedule) return null;
-                    const sweepPct = hasGpsData ? 100 - rate : 0;
-                    // "Not scheduled" = not on ASP; "No GPS data" = on ASP but sweeper never detected
-                    const notScheduled = aspDays.size > 0 ? !isOnAspSchedule : (!hasGpsData || sweepPct <= 5);
-                    const noGpsOnAspDay = isOnAspSchedule && !hasGpsData;
-                    const isCurrentDay = i === todayDowIdx;
-                    const color = notScheduled || noGpsOnAspDay ? 'gray' : sweepPct >= 80 ? 'green' : sweepPct >= 40 ? 'yellow' : 'red';
-                    return (
-                      <Box
-                        key={day}
-                        textAlign="center"
-                        flex={1}
-                        opacity={notScheduled ? 0.5 : 1}
-                        borderRadius="md"
-                        border={isCurrentDay ? '2px solid' : 'none'}
-                        borderColor={isCurrentDay ? 'blue.300' : 'transparent'}
-                        py={isCurrentDay ? '1px' : '3px'}
-                      >
-                        <Text fontSize="2xs" color={isCurrentDay ? 'blue.600' : 'gray.500'} fontWeight={isCurrentDay ? 'bold' : 'normal'}>
-                          {day}
-                        </Text>
-                        <Badge colorScheme={color} fontSize="2xs" w="full" textAlign="center">
-                          {notScheduled ? 'N/A' : noGpsOnAspDay ? 'N/A' : `${sweepPct}%`}
-                        </Badge>
-                      </Box>
-                    );
-                  })}
-                </HStack>
-              )}
+              {(sweepReliability.dowSkipRates || aspDays.size > 0) && (() => {
+                const dowTotals = getDowTotalsSync();
+                return (
+                  <HStack spacing={1} mt={1}>
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
+                      const rate = sweepReliability.dowSkipRates ? sweepReliability.dowSkipRates[i] : -1;
+                      const isOnAspSchedule = aspDays.has(i);
+                      const hasGpsData = rate >= 0;
+                      // Hide days that are neither on ASP schedule nor have GPS data
+                      if (!hasGpsData && !isOnAspSchedule) return null;
+                      const sweepPct = hasGpsData ? 100 - rate : 0;
+                      // "Not scheduled" = not on ASP; "No GPS data" = on ASP but sweeper never detected
+                      const notScheduled = aspDays.size > 0 ? !isOnAspSchedule : (!hasGpsData || sweepPct <= 5);
+                      const noGpsOnAspDay = isOnAspSchedule && !hasGpsData;
+                      const isCurrentDay = i === todayDowIdx;
+                      const color = notScheduled || noGpsOnAspDay ? 'gray' : sweepPct >= 80 ? 'green' : sweepPct >= 40 ? 'yellow' : 'red';
+                      // Compute visit counts: "came X of Y days"
+                      const totalForDay = dowTotals ? dowTotals[i] : null;
+                      const sweptCount = hasGpsData && totalForDay ? Math.round(totalForDay * sweepPct / 100) : 0;
+                      return (
+                        <Box
+                          key={day}
+                          textAlign="center"
+                          flex={1}
+                          opacity={notScheduled ? 0.5 : 1}
+                          borderRadius="md"
+                          border={isCurrentDay ? '2px solid' : 'none'}
+                          borderColor={isCurrentDay ? 'blue.300' : 'transparent'}
+                          py={isCurrentDay ? '1px' : '3px'}
+                        >
+                          <Text fontSize="2xs" color={isCurrentDay ? 'blue.600' : 'gray.500'} fontWeight={isCurrentDay ? 'bold' : 'normal'}>
+                            {day}
+                          </Text>
+                          <Badge colorScheme={color} fontSize="2xs" w="full" textAlign="center">
+                            {notScheduled ? 'N/A' : noGpsOnAspDay ? 'N/A' : `${sweepPct}%`}
+                          </Badge>
+                          {totalForDay && !notScheduled && (
+                            <Text fontSize="2xs" color="gray.400" lineHeight="1.2" mt="1px">
+                              {noGpsOnAspDay ? `0/${totalForDay}` : `${sweptCount}/${totalForDay}`}
+                            </Text>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </HStack>
+                );
+              })()}
             </Box>
             {missedAspDays.length > 0 && (
               <Box bg="orange.50" px={3} py={2} borderRadius="md">
