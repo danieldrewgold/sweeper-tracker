@@ -48,43 +48,83 @@ BORO_MAP = {
 }
 
 
-def load_gps_corrected_skip_rates():
-    """Load GPS-corrected skip rates from sweepData.json.
+def load_gps_data():
+    """Load GPS data from sweepData.json.
 
-    For each segment with DOW data, compute skip rate as the average of
-    only the days where GPS detected the sweeper at least once (rate >= 0).
-    This avoids inflating skip rates with ASP days from the opposite side
-    of the street where the sweeper never actually comes.
-
-    Returns dict: pid -> corrected_skip_rate (or None if no DOW data).
+    Returns:
+      gps_active_days: dict pid -> set of active DOW indices (0=Mon..5=Sat)
+      gps_corrected_rates: dict pid -> corrected skip rate
+      sweep_dates_by_pid: dict pid -> set of date strings when sweeper came
     """
     if not os.path.exists(SWEEP_DATA_JSON):
         print(f"  WARNING: {SWEEP_DATA_JSON} not found, using step1 rates")
-        return {}
+        return {}, {}, {}
 
     with open(SWEEP_DATA_JSON, "r") as f:
         data = json.load(f)
 
-    corrected = {}
+    gps_active_days = {}
+    gps_corrected_rates = {}
     r = data.get("r", {})
     for pid, entry in r.items():
-        # entry = [skipRate, totalDays, tickets, dowSkipRates|null]
         dow_rates = entry[3] if len(entry) > 3 else None
         if dow_rates is None:
             continue
-        # Only include days where GPS detected sweeper (rate >= 0)
-        active_rates = [rate for rate in dow_rates if rate >= 0]
-        if not active_rates:
+        active = {i for i, rate in enumerate(dow_rates) if rate >= 0}
+        if not active:
             continue
-        corrected[pid] = round(sum(active_rates) / len(active_rates), 1)
+        gps_active_days[pid] = active
+        active_rates = [dow_rates[i] for i in active]
+        gps_corrected_rates[pid] = round(sum(active_rates) / len(active_rates), 1)
 
-    print(f"  GPS-corrected skip rates: {len(corrected)} segments")
-    return corrected
+    print(f"  GPS data: {len(gps_corrected_rates)} segments with DOW rates")
+
+    # Load sweep GPS records for per-date sweep confirmation
+    SWEEP_PATH = os.path.join(PROJECT_DIR, 'sweep_data', 'sweep_gps_full_year.json')
+    sweep_dates_by_pid = defaultdict(set)
+    if os.path.exists(SWEEP_PATH):
+        print("  Loading sweep GPS dates...")
+        with open(SWEEP_PATH) as f:
+            sweep_records = json.load(f)
+        for rec in sweep_records:
+            pid = str(rec.get('physical_id', ''))
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(rec['date_visited'].replace('Z', '+00:00'))
+                sweep_dates_by_pid[pid].add(dt.strftime('%Y-%m-%d'))
+            except (ValueError, KeyError):
+                continue
+        print(f"  Sweep dates loaded for {len(sweep_dates_by_pid)} segments")
+    else:
+        print(f"  WARNING: {SWEEP_PATH} not found, can't compute per-date confirmed counts")
+
+    return gps_active_days, gps_corrected_rates, dict(sweep_dates_by_pid)
+
+
+def load_crossref_tickets():
+    """Load all tickets from crossref, grouped by physical_id.
+
+    Returns dict: pid -> list of date strings (ticket dates).
+    """
+    from datetime import datetime
+    pid_tickets = defaultdict(list)
+    with open(CROSSREF_CSV, "r") as f:
+        for row in csv.DictReader(f):
+            pid = row["physical_id"]
+            date_str = row["date"]  # format: YYYY-MM-DD
+            pid_tickets[pid].append(date_str)
+    print(f"  Crossref: {sum(len(v) for v in pid_tickets.values())} tickets across {len(pid_tickets)} segments")
+    return dict(pid_tickets)
 
 
 def load_step1():
-    # Load GPS-corrected rates first
-    gps_rates = load_gps_corrected_skip_rates()
+    from datetime import datetime
+
+    # Load GPS data
+    gps_active_days, gps_corrected_rates, sweep_dates_by_pid = load_gps_data()
+
+    # Load per-ticket dates from crossref for GPS-corrected noSweep/confirmed
+    pid_tickets = load_crossref_tickets()
 
     segments = {}
     corrected_count = 0
@@ -92,19 +132,47 @@ def load_step1():
         for row in csv.DictReader(f):
             pid = row["physical_id"]
             step1_rate = float(row["skip_rate"])
-            # Use GPS-corrected rate if available, otherwise fall back to step1
-            if pid in gps_rates:
-                skip_rate = gps_rates[pid]
+            step1_tickets = int(row["total_tickets"])
+            step1_skip_tickets = int(row["tickets_on_skip_days"])
+
+            if pid in gps_corrected_rates and pid in gps_active_days:
+                skip_rate = gps_corrected_rates[pid]
+                active_days = gps_active_days[pid]
+                sweep_dates = sweep_dates_by_pid.get(pid, set())
+                ticket_dates = pid_tickets.get(pid, [])
+
+                # Recompute noSweep/confirmed using only tickets on GPS-active DOW
+                no_sweep = 0
+                confirmed = 0
+                for d_str in ticket_dates:
+                    try:
+                        dt = datetime.strptime(d_str, '%Y-%m-%d')
+                        dow = dt.weekday()  # 0=Mon..6=Sun
+                    except ValueError:
+                        continue
+                    if dow >= 6 or dow not in active_days:
+                        continue  # Skip tickets on non-sweep days for this side
+                    if d_str in sweep_dates:
+                        confirmed += 1
+                    else:
+                        no_sweep += 1
+
+                total_tickets = no_sweep + confirmed
                 corrected_count += 1
             else:
                 skip_rate = step1_rate
+                total_tickets = step1_tickets
+                no_sweep = step1_skip_tickets
+                confirmed = step1_tickets - step1_skip_tickets
+
             segments[pid] = {
                 "pid": pid,
                 "street_name": row["street_name"],
                 "boro": row["boro"],
                 "skip_rate": skip_rate,
-                "total_tickets": int(row["total_tickets"]),
-                "tickets_on_skip_days": int(row["tickets_on_skip_days"]),
+                "total_tickets": total_tickets,
+                "tickets_on_skip_days": no_sweep,
+                "confirmed_tickets": confirmed,
             }
     print(f"  {corrected_count}/{len(segments)} segments GPS-corrected")
     return segments
@@ -307,7 +375,7 @@ def main():
         for s in d["worst_segs"]:
             houses = pid_houses.get(s["pid"], "")
             noSweep = s["tickets_on_skip_days"]
-            confirmed = s["total_tickets"] - s["tickets_on_skip_days"]
+            confirmed = s.get("confirmed_tickets", s["total_tickets"] - s["tickets_on_skip_days"])
             skipRate = s["skip_rate"]
             street_display = clean_street_name(s["street_name"])
             blocks.append(
