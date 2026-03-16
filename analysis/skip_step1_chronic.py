@@ -291,21 +291,30 @@ def main():
     for (pid, d) in sweep_index:
         seg_total_sweep_days[pid] += 1
 
-    # Build final results (filter out junk drawer segments)
+    # Build final results (filter out junk drawer segments and low-GPS segments)
+    MIN_GPS_VISITS = 0  # No GPS filter — low-visit blocks are real (confirmed via SweepNYC API)
     junk_excluded = 0
     junk_tickets = 0
+    low_gps_excluded = 0
+    low_gps_tickets = 0
     results = []
     for pid, stats in seg_stats.items():
         if pid_to_span.get(pid, 0) > MAX_ADDR_SPAN:
             junk_excluded += 1
             junk_tickets += stats["total_tickets"]
             continue
+
         swept_days = stats["swept_days"]        # ticket-days with sweep
         skipped_days = stats["skipped_days"]     # ticket-days without sweep
         total_tickets = stats["total_tickets"]
 
         # Total sweep days from GPS (includes days with no tickets)
         gps_sweep_days = seg_total_sweep_days.get(pid, 0)
+
+        if gps_sweep_days < MIN_GPS_VISITS:
+            low_gps_excluded += 1
+            low_gps_tickets += total_tickets
+            continue
 
         # Sweep-only days = GPS sweep days that aren't ticket days
         sweep_only_days = max(0, gps_sweep_days - swept_days)
@@ -325,12 +334,14 @@ def main():
             "skip_rate": round(skip_rate, 1),
             "total_tickets": total_tickets,
             "tickets_on_skip_days": skipped_days,  # proxy (at least 1 ticket per skip day)
+            "gps_visits": gps_sweep_days,
         })
 
     rdf = pd.DataFrame(results)
     elapsed = time.time() - t0
     print(f"  Computed {len(rdf):,} segment skip rates in {elapsed:.1f}s")
     print(f"  Excluded {junk_excluded:,} junk-drawer segments (addr span > {MAX_ADDR_SPAN}) with {junk_tickets:,} tickets")
+    print(f"  Excluded {low_gps_excluded:,} low-GPS segments (<{MIN_GPS_VISITS} visits) with {low_gps_tickets:,} tickets")
 
     # Count actual tickets on skip days more precisely
     skip_ticket_counts = valid_tickets.copy()
@@ -351,7 +362,7 @@ def main():
                         break
                 if swept:
                     break
-        if not swept and pid_to_span.get(pid, 0) <= MAX_ADDR_SPAN:
+        if not swept and pid_to_span.get(pid, 0) <= MAX_ADDR_SPAN and seg_total_sweep_days.get(pid, 0) >= MIN_GPS_VISITS:
             skip_keys.add(f"{pid}|{d}")
 
     skip_ticket_mask = skip_ticket_counts["_key"].isin(skip_keys)
@@ -422,16 +433,53 @@ def main():
 
     # Top 50 most chronically skipped
     top50 = reliable.sort_values("skip_rate", ascending=False).head(50)
-    print(f"\n--- Top 50 Most Chronically Skipped Blocks ({min_days}+ ASP days) ---")
-    print(f"  {'#':<4s} {'Street':<30s} {'Boro':<12s} {'Skip%':>6s} {'Skip/Total':>12s} {'Tickets':>8s}")
-    print(f"  {'-' * 76}")
+    print(f"\n--- Top 50 Most Chronically Skipped Blocks ({min_days}+ ASP days, {MIN_GPS_VISITS}+ GPS visits) ---")
+    print(f"  {'#':<4s} {'Street':<30s} {'Boro':<12s} {'Skip%':>6s} {'Skip/Total':>12s} {'GPS':>6s} {'Tickets':>8s}")
+    print(f"  {'-' * 84}")
     for rank, (_, row) in enumerate(top50.iterrows(), 1):
         print(
             f"  {rank:<4d} {row['street_name']:<30s} {row['boro']:<12s} "
             f"{row['skip_rate']:>5.1f}% "
             f"{int(row['skipped_days']):>4d}/{int(row['total_asp_days']):>4d}    "
+            f"{int(row['gps_visits']):>6d} "
             f"{int(row['total_tickets']):>8,}"
         )
+
+    # ─── STRESS TEST: Skip rate vs GPS coverage correlation ───
+    print(f"\n--- STRESS TEST: Skip Rate vs GPS Coverage ---")
+    print(f"  (Only segments with {MIN_GPS_VISITS}+ GPS visits)")
+    gps_buckets = [
+        (50, 75, "50-75 GPS visits"),
+        (75, 100, "75-100 GPS visits"),
+        (100, 150, "100-150 GPS visits"),
+        (150, 200, "150-200 GPS visits"),
+        (200, 999999, "200+ GPS visits"),
+    ]
+    print(f"  {'GPS Range':<22s} {'Segs':>8s} {'Median Skip%':>13s} {'Max Skip%':>10s} {'Avg Tickets':>12s} {'Total Tix':>10s}")
+    print(f"  {'-' * 80}")
+    for lo, hi, label in gps_buckets:
+        sub = reliable[(reliable["gps_visits"] >= lo) & (reliable["gps_visits"] < hi)]
+        if len(sub) == 0:
+            continue
+        print(
+            f"  {label:<22s} {len(sub):>8,} {sub['skip_rate'].median():>12.1f}% "
+            f"{sub['skip_rate'].max():>9.1f}% {sub['total_tickets'].mean():>11.0f} "
+            f"{sub['total_tickets'].sum():>10,}"
+        )
+
+    # Summary stats
+    total_skip_tickets = reliable["tickets_on_skip_days"].sum()
+    total_all_tickets = reliable["total_tickets"].sum()
+    print(f"\n  SUMMARY (segments with {MIN_GPS_VISITS}+ GPS & {min_days}+ ASP days):")
+    print(f"    Segments analyzed:       {len(reliable):,}")
+    print(f"    Total tickets on these:  {total_all_tickets:,}")
+    print(f"    Tickets on skip days:    {total_skip_tickets:,}")
+    if total_all_tickets > 0:
+        print(f"    Skip-day ticket rate:    {total_skip_tickets/total_all_tickets*100:.1f}%")
+    avg_fine = 65
+    print(f"    Est. revenue (skip tix): ${total_skip_tickets * avg_fine:,.0f}")
+    print(f"    Median skip rate:        {reliable['skip_rate'].median():.1f}%")
+    print(f"    Mean skip rate:          {reliable['skip_rate'].mean():.1f}%")
 
     # Save
     rdf.sort_values("skip_rate", ascending=False).to_csv(

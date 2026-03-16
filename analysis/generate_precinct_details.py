@@ -291,31 +291,43 @@ def get_house_numbers_batch(pids):
     return pid_houses
 
 
+PRECINCT_CACHE = os.path.join(PROJECT_DIR, "sweep_analysis_output/pid_precinct_cache.json")
+
+
 def main():
     # 1. Load step1 segments
     segments = load_step1()
     print(f"Loaded {len(segments)} segments from step1")
 
-    # 2. Get one summons per pid from crossref
-    pid_summons = load_pid_summons()
-    print(f"Found summons for {len(pid_summons)} pids in crossref")
+    # 2. Get pid -> precinct mapping (from cache or API)
+    if os.path.exists(PRECINCT_CACHE):
+        print(f"Loading precinct mapping from cache...")
+        with open(PRECINCT_CACHE) as f:
+            pid_precinct = json.load(f)
+        print(f"Cached precinct mapping: {len(pid_precinct)} segments")
+    else:
+        pid_summons = load_pid_summons()
+        print(f"Found summons for {len(pid_summons)} pids in crossref")
 
-    # 3. Build list of (summons, pid) pairs
-    summons_to_pid = {}
-    for pid, sn in pid_summons.items():
-        if pid in segments:
-            summons_to_pid[sn] = pid
+        summons_to_pid = {}
+        for pid, sn in pid_summons.items():
+            if pid in segments:
+                summons_to_pid[sn] = pid
 
-    print(f"Querying precincts for {len(summons_to_pid)} summons...")
-    summons_precinct = batch_get_precincts(list(summons_to_pid.keys()))
-    print(f"Got precincts for {len(summons_precinct)} summons")
+        print(f"Querying precincts for {len(summons_to_pid)} summons...")
+        summons_precinct = batch_get_precincts(list(summons_to_pid.keys()))
+        print(f"Got precincts for {len(summons_precinct)} summons")
 
-    # 4. Map pid -> precinct
-    pid_precinct = {}
-    for sn, prec in summons_precinct.items():
-        pid = summons_to_pid.get(sn)
-        if pid:
-            pid_precinct[pid] = prec
+        pid_precinct = {}
+        for sn, prec in summons_precinct.items():
+            pid = summons_to_pid.get(sn)
+            if pid:
+                pid_precinct[pid] = prec
+
+        # Cache for future runs
+        with open(PRECINCT_CACHE, 'w') as f:
+            json.dump(pid_precinct, f)
+        print(f"Cached precinct mapping to {PRECINCT_CACHE}")
 
     print(f"Assigned precinct to {len(pid_precinct)} segments")
 
@@ -398,6 +410,30 @@ def main():
         f.write('\n'.join(lines))
 
     print(f"\nWrote {OUTPUT_FILE} with {len(precinct_data)} precincts")
+
+    # 9. Output precinct summary table (for dataFacts.ts PRECINCT_DATA)
+    print("\n=== PRECINCT SUMMARY TABLE (GPS-corrected) ===")
+    precinct_summary = []
+    for prec in sorted(by_precinct.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+        if not prec.isdigit() or int(prec) == 0:
+            continue
+        segs = by_precinct[prec]
+        total = sum(s["total_tickets"] for s in segs)
+        no_sweep = sum(s["tickets_on_skip_days"] for s in segs)
+        if total < 10:
+            continue
+        rate = round(100 * no_sweep / total, 1) if total > 0 else 0.0
+        precinct_summary.append((int(prec), total, no_sweep, rate))
+
+    # Sort by no-sweep rate descending
+    precinct_summary.sort(key=lambda x: x[3], reverse=True)
+
+    summary_file = os.path.join(PROJECT_DIR, "sweep_analysis_output/precinct_summary_corrected.json")
+    with open(summary_file, 'w') as f:
+        json.dump(precinct_summary, f)
+    print(f"Wrote {summary_file} with {len(precinct_summary)} precincts")
+    for prec, total, ns, rate in precinct_summary[:10]:
+        print(f"  Precinct {prec}: {total} total, {ns} no-sweep, {rate}% rate")
 
 
 if __name__ == "__main__":
