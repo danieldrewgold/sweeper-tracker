@@ -49,54 +49,66 @@ BORO_MAP = {
 
 
 def load_gps_data():
-    """Load GPS data from sweepData.json.
+    """Load GPS data from raw GPS records (sweep_gps_full_year.json) and sweepData.json.
+
+    Builds GPS-active DOW from raw GPS records so all 18,029 segments get
+    GPS correction, not just the ~1,072 that have DOW rates in sweepData.json.
+
+    For skip rates, uses sweepData.json's gps_corrected_rates where available;
+    for segments without DOW rates in sweepData.json, skip rate will be computed
+    from no_sweep / (no_sweep + confirmed) * 100 during ticket processing.
 
     Returns:
       gps_active_days: dict pid -> set of active DOW indices (0=Mon..5=Sat)
-      gps_corrected_rates: dict pid -> corrected skip rate
+      gps_corrected_rates: dict pid -> corrected skip rate (from sweepData.json where available)
       sweep_dates_by_pid: dict pid -> set of date strings when sweeper came
     """
-    if not os.path.exists(SWEEP_DATA_JSON):
-        print(f"  WARNING: {SWEEP_DATA_JSON} not found, using step1 rates")
-        return {}, {}, {}
+    from datetime import datetime as dt_cls
 
-    with open(SWEEP_DATA_JSON, "r") as f:
-        data = json.load(f)
-
-    gps_active_days = {}
-    gps_corrected_rates = {}
-    r = data.get("r", {})
-    for pid, entry in r.items():
-        dow_rates = entry[3] if len(entry) > 3 else None
-        if dow_rates is None:
-            continue
-        active = {i for i, rate in enumerate(dow_rates) if rate >= 0}
-        if not active:
-            continue
-        gps_active_days[pid] = active
-        active_rates = [dow_rates[i] for i in active]
-        gps_corrected_rates[pid] = round(sum(active_rates) / len(active_rates), 1)
-
-    print(f"  GPS data: {len(gps_corrected_rates)} segments with DOW rates")
-
-    # Load sweep GPS records for per-date sweep confirmation
+    # --- Build GPS-active DOW and sweep dates from raw GPS records ---
     SWEEP_PATH = os.path.join(PROJECT_DIR, 'sweep_data', 'sweep_gps_full_year.json')
+    gps_active_days = {}
     sweep_dates_by_pid = defaultdict(set)
+    pid_dow_visits = defaultdict(set)
+
     if os.path.exists(SWEEP_PATH):
-        print("  Loading sweep GPS dates...")
+        print("  Loading raw GPS records for DOW detection...")
         with open(SWEEP_PATH) as f:
             sweep_records = json.load(f)
         for rec in sweep_records:
             pid = str(rec.get('physical_id', ''))
             try:
-                from datetime import datetime
-                dt = datetime.fromisoformat(rec['date_visited'].replace('Z', '+00:00'))
-                sweep_dates_by_pid[pid].add(dt.strftime('%Y-%m-%d'))
+                dt = dt_cls.fromisoformat(rec['date_visited'].replace('Z', '+00:00'))
+                dow = dt.weekday()  # 0=Mon..6=Sun
+                if dow < 6:  # Mon-Sat only
+                    pid_dow_visits[pid].add(dow)
+                    sweep_dates_by_pid[pid].add(dt.strftime('%Y-%m-%d'))
             except (ValueError, KeyError):
                 continue
+        gps_active_days = {pid: days for pid, days in pid_dow_visits.items() if days}
+        print(f"  GPS-active DOW built for {len(gps_active_days)} segments (from raw GPS)")
         print(f"  Sweep dates loaded for {len(sweep_dates_by_pid)} segments")
     else:
-        print(f"  WARNING: {SWEEP_PATH} not found, can't compute per-date confirmed counts")
+        print(f"  WARNING: {SWEEP_PATH} not found, can't build GPS-active DOW")
+
+    # --- Load skip rates from sweepData.json where available ---
+    gps_corrected_rates = {}
+    if os.path.exists(SWEEP_DATA_JSON):
+        with open(SWEEP_DATA_JSON, "r") as f:
+            data = json.load(f)
+        r = data.get("r", {})
+        for pid, entry in r.items():
+            dow_rates = entry[3] if len(entry) > 3 else None
+            if dow_rates is None:
+                continue
+            active = {i for i, rate in enumerate(dow_rates) if rate >= 0}
+            if not active:
+                continue
+            active_rates = [dow_rates[i] for i in active]
+            gps_corrected_rates[pid] = round(sum(active_rates) / len(active_rates), 1)
+        print(f"  sweepData.json skip rates: {len(gps_corrected_rates)} segments with DOW rates")
+    else:
+        print(f"  WARNING: {SWEEP_DATA_JSON} not found, will compute skip rates from tickets")
 
     return gps_active_days, gps_corrected_rates, dict(sweep_dates_by_pid)
 
@@ -135,8 +147,7 @@ def load_step1():
             step1_tickets = int(row["total_tickets"])
             step1_skip_tickets = int(row["tickets_on_skip_days"])
 
-            if pid in gps_corrected_rates and pid in gps_active_days:
-                skip_rate = gps_corrected_rates[pid]
+            if pid in gps_active_days:
                 active_days = gps_active_days[pid]
                 sweep_dates = sweep_dates_by_pid.get(pid, set())
                 ticket_dates = pid_tickets.get(pid, [])
@@ -158,6 +169,15 @@ def load_step1():
                         no_sweep += 1
 
                 total_tickets = no_sweep + confirmed
+
+                # Use sweepData.json skip rate if available, otherwise compute from tickets
+                if pid in gps_corrected_rates:
+                    skip_rate = gps_corrected_rates[pid]
+                elif total_tickets > 0:
+                    skip_rate = round(100 * no_sweep / total_tickets, 1)
+                else:
+                    skip_rate = 0.0
+
                 corrected_count += 1
             else:
                 skip_rate = step1_rate
