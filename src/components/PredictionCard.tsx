@@ -170,29 +170,28 @@ export default function PredictionCard() {
       }, new Set())
     : null;
   // Days where ASP is listed but sweeper rarely/never comes
+  // Include days with -1 (no GPS data at all) as "missed"
   const missedAspDays = reliabilityDays && aspDays.size > 0
     ? [...aspDays].filter((d) => !reliabilityDays.has(d))
+    : sweepReliability?.dowSkipRates && aspDays.size > 0
+    ? [...aspDays].filter((d) => {
+        const rate = sweepReliability.dowSkipRates![d];
+        return rate < 0 || (100 - rate) <= 5; // no GPS data or sweeper comes ≤5%
+      })
     : [];
   const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const allMissedAreZero = missedAspDays.length > 0 && sweepReliability?.dowSkipRates
-    ? missedAspDays.every((d) => sweepReliability.dowSkipRates![d] >= 100)
+    ? missedAspDays.every((d) => {
+        const rate = sweepReliability.dowSkipRates![d];
+        return rate < 0 || rate >= 100; // -1 (never comes) or 100% skip
+      })
     : false;
 
-  // Use ASP schedule to get a real skip rate for actual ASP days.
-  // The pipeline computes skip rate over GPS-inferred "scheduled" days, which
-  // can differ from real ASP days. When we have ASP data, recalculate using
-  // only the real ASP days. Over 7 months each DOW has ~equal observations,
-  // so the per-DOW rates are each real percentages and their mean equals
-  // the count-based rate.
-  const displaySkipRate = (() => {
-    if (!sweepReliability) return 0;
-    if (!sweepReliability.dowSkipRates || aspDays.size === 0) return sweepReliability.skipRate;
-    const aspDayRates = [...aspDays]
-      .map((d) => sweepReliability.dowSkipRates![d])
-      .filter((r) => r >= 0);
-    if (aspDayRates.length === 0) return sweepReliability.skipRate;
-    return Math.round(aspDayRates.reduce((a, b) => a + b, 0) / aspDayRates.length);
-  })();
+  // Use the step1-computed skip rate directly — it's the source of truth,
+  // calculated from ticket crossref against GPS sweep data across all ASP days.
+  // Do NOT recalculate from per-DOW GPS rates, as that drops days where the
+  // sweeper never comes (GPS rate = -1) and drastically underestimates skip rate.
+  const displaySkipRate = sweepReliability ? Math.round(sweepReliability.skipRate) : 0;
 
   // Today's DOW index (Mon=0 .. Sat=5, Sunday=-1)
   const todayDowIdx = todayDow >= 1 && todayDow <= 6 ? todayDow - 1 : -1;
@@ -470,17 +469,20 @@ export default function PredictionCard() {
                   {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block last year
                 </Text>
               )}
-              {sweepReliability.dowSkipRates && (
+              {(sweepReliability.dowSkipRates || aspDays.size > 0) && (
                 <HStack spacing={1} mt={1}>
                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => {
-                    const rate = sweepReliability.dowSkipRates![i];
-                    if (rate < 0) return null;
-                    const sweepPct = 100 - rate;
-                    // Use ASP schedule to determine if this day is scheduled, not GPS activity
+                    const rate = sweepReliability.dowSkipRates ? sweepReliability.dowSkipRates[i] : -1;
                     const isOnAspSchedule = aspDays.has(i);
-                    const notScheduled = aspDays.size > 0 ? !isOnAspSchedule : sweepPct <= 5;
+                    const hasGpsData = rate >= 0;
+                    // Hide days that are neither on ASP schedule nor have GPS data
+                    if (!hasGpsData && !isOnAspSchedule) return null;
+                    const sweepPct = hasGpsData ? 100 - rate : 0;
+                    // "Not scheduled" = not on ASP; "No GPS data" = on ASP but sweeper never detected
+                    const notScheduled = aspDays.size > 0 ? !isOnAspSchedule : (!hasGpsData || sweepPct <= 5);
+                    const noGpsOnAspDay = isOnAspSchedule && !hasGpsData;
                     const isCurrentDay = i === todayDowIdx;
-                    const color = notScheduled ? 'gray' : sweepPct >= 80 ? 'green' : sweepPct >= 40 ? 'yellow' : 'red';
+                    const color = notScheduled || noGpsOnAspDay ? 'gray' : sweepPct >= 80 ? 'green' : sweepPct >= 40 ? 'yellow' : 'red';
                     return (
                       <Box
                         key={day}
@@ -496,7 +498,7 @@ export default function PredictionCard() {
                           {day}
                         </Text>
                         <Badge colorScheme={color} fontSize="2xs" w="full" textAlign="center">
-                          {notScheduled ? 'N/A' : `${sweepPct}%`}
+                          {notScheduled ? 'N/A' : noGpsOnAspDay ? 'N/A' : `${sweepPct}%`}
                         </Badge>
                       </Box>
                     );
