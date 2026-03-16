@@ -519,6 +519,7 @@ export default function PredictionCard() {
                   </HStack>
                 );
               })()}
+            </Box>
           </>
         )}
 
