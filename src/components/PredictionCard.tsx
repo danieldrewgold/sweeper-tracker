@@ -183,8 +183,6 @@ export default function PredictionCard() {
   // fall back to ASP signs when no GPS data exists
   const effectiveDays = gpsActiveDays && gpsActiveDays.size > 0 ? gpsActiveDays : aspDays;
 
-  const DAY_NAMES_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
   // Skip rate: average DOW rates for GPS-active days only (accurate per-side).
   // Falls back to step1 rate when no DOW data.
   const displaySkipRate = (() => {
