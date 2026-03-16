@@ -1,23 +1,29 @@
 """
-Generate precinctDetails.ts from step1_segment_skip_rates.csv.
+Generate precinctDetails.ts from step1_segment_skip_rates.csv + sweepData.json.
 
 Strategy:
 1. Read crossref_full_year.csv to get one summons_number per physical_id
 2. Batch-query ticket API for violation_precinct using those summons numbers
 3. Group segments by precinct, pick top 3 worst blocks per precinct
+4. Use GPS-corrected skip rates from sweepData.json (avg of DOW rates where GPS detected)
 """
 import csv
 import json
+import os
 import requests
 import time
 import sys
 from collections import defaultdict
 
-STEP1_CSV = "sweep_analysis_output/step1_segment_skip_rates.csv"
-CROSSREF_CSV = "sweep_analysis_output/crossref_full_year.csv"
+BASE = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(BASE)
+
+STEP1_CSV = os.path.join(PROJECT_DIR, "sweep_analysis_output/step1_segment_skip_rates.csv")
+CROSSREF_CSV = os.path.join(PROJECT_DIR, "sweep_analysis_output/crossref_full_year.csv")
+SWEEP_DATA_JSON = os.path.join(PROJECT_DIR, "src/data/sweepData.json")
 CSCL_API = "https://data.cityofnewyork.us/resource/inkn-q76z.json"
 TICKET_API = "https://data.cityofnewyork.us/resource/pvqr-7yc4.json"
-OUTPUT_FILE = "src/data/precinctDetails.ts"
+OUTPUT_FILE = os.path.join(PROJECT_DIR, "src/data/precinctDetails.ts")
 
 def clean_street_name(name):
     """Title-case street names and fix common abbreviations."""
@@ -42,19 +48,65 @@ BORO_MAP = {
 }
 
 
+def load_gps_corrected_skip_rates():
+    """Load GPS-corrected skip rates from sweepData.json.
+
+    For each segment with DOW data, compute skip rate as the average of
+    only the days where GPS detected the sweeper at least once (rate >= 0).
+    This avoids inflating skip rates with ASP days from the opposite side
+    of the street where the sweeper never actually comes.
+
+    Returns dict: pid -> corrected_skip_rate (or None if no DOW data).
+    """
+    if not os.path.exists(SWEEP_DATA_JSON):
+        print(f"  WARNING: {SWEEP_DATA_JSON} not found, using step1 rates")
+        return {}
+
+    with open(SWEEP_DATA_JSON, "r") as f:
+        data = json.load(f)
+
+    corrected = {}
+    r = data.get("r", {})
+    for pid, entry in r.items():
+        # entry = [skipRate, totalDays, tickets, dowSkipRates|null]
+        dow_rates = entry[3] if len(entry) > 3 else None
+        if dow_rates is None:
+            continue
+        # Only include days where GPS detected sweeper (rate >= 0)
+        active_rates = [rate for rate in dow_rates if rate >= 0]
+        if not active_rates:
+            continue
+        corrected[pid] = round(sum(active_rates) / len(active_rates), 1)
+
+    print(f"  GPS-corrected skip rates: {len(corrected)} segments")
+    return corrected
+
+
 def load_step1():
+    # Load GPS-corrected rates first
+    gps_rates = load_gps_corrected_skip_rates()
+
     segments = {}
+    corrected_count = 0
     with open(STEP1_CSV, "r") as f:
         for row in csv.DictReader(f):
             pid = row["physical_id"]
+            step1_rate = float(row["skip_rate"])
+            # Use GPS-corrected rate if available, otherwise fall back to step1
+            if pid in gps_rates:
+                skip_rate = gps_rates[pid]
+                corrected_count += 1
+            else:
+                skip_rate = step1_rate
             segments[pid] = {
                 "pid": pid,
                 "street_name": row["street_name"],
                 "boro": row["boro"],
-                "skip_rate": float(row["skip_rate"]),
+                "skip_rate": skip_rate,
                 "total_tickets": int(row["total_tickets"]),
                 "tickets_on_skip_days": int(row["tickets_on_skip_days"]),
             }
+    print(f"  {corrected_count}/{len(segments)} segments GPS-corrected")
     return segments
 
 
