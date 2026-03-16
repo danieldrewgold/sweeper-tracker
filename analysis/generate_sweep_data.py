@@ -124,16 +124,12 @@ def load_reliability_with_dow():
         valid_rates = [r for r in dow_rates if r >= 0]
         has_pattern = len(valid_rates) >= 1  # Show DOW if sweeper visits on any day
 
-        # Scheduled days = days the sweeper has actually visited at least once
-        scheduled_days = {dow for dow in range(6) if dow_total[dow] > 0 and dow_swept[dow] > 0}
-        if scheduled_days:
-            sched_total = sum(1 for d in weekday_dates if d.weekday() in scheduled_days)
-            sched_swept = sum(1 for d in swept if d.weekday() < 6 and d.weekday() in scheduled_days and d in set(weekday_dates))
-            skip_rate = round(100 * (1 - sched_swept / sched_total), 1) if sched_total > 0 else info['skip_rate']
-            total_days = sched_total
-        else:
-            skip_rate = info['skip_rate']
-            total_days = info['total_days']
+        # Use step1 skip rate as the headline — it's computed from ticket crossref
+        # against ALL ASP days, not just days the sweeper happened to visit.
+        # This avoids the bug where a Thursday-only sweeper on a Mon-Sat ASP block
+        # would show 39.6% skip (Thu only) instead of 81.1% (all ASP days).
+        skip_rate = info['skip_rate']
+        total_days = info['total_days']
 
         data[pid] = [
             skip_rate,
