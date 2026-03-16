@@ -122,7 +122,7 @@ def load_reliability_with_dow():
                 dow_rates.append(-1)
 
         valid_rates = [r for r in dow_rates if r >= 0]
-        has_pattern = valid_rates and (max(valid_rates) - min(valid_rates)) > 20
+        has_pattern = len(valid_rates) >= 1  # Show DOW if sweeper visits on any day
 
         # Scheduled days = days the sweeper has actually visited at least once
         scheduled_days = {dow for dow in range(6) if dow_total[dow] > 0 and dow_swept[dow] > 0}
@@ -176,7 +176,7 @@ def load_reliability_with_dow():
         skip_rate = round(100 * (1 - scheduled_swept / scheduled_total), 1) if scheduled_total > 0 else 0.0
 
         valid_rates = [r for r in dow_rates if r >= 0]
-        has_pattern = valid_rates and (max(valid_rates) - min(valid_rates)) > 20
+        has_pattern = len(valid_rates) >= 1  # Show DOW if sweeper visits on any day
 
         data[pid] = [skip_rate, scheduled_total, 0, dow_rates if has_pattern else None]
         sweep_only += 1
