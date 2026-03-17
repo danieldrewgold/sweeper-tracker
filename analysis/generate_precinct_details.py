@@ -354,7 +354,8 @@ def main():
     # 5. Group by precinct
     by_precinct = defaultdict(list)
     for pid, prec in pid_precinct.items():
-        by_precinct[prec].append(segments[pid])
+        if pid in segments:
+            by_precinct[prec].append(segments[pid])
 
     print(f"Found {len(by_precinct)} precincts")
 

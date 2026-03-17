@@ -29,6 +29,40 @@ sys.path.insert(0, ".")
 from analysis.improved_crossref import normalize_v3, TICKET_COUNTY_TO_BORO
 
 OUT_DIR = "sweep_analysis_output"
+
+
+def _parse_hn(raw, is_queens=False):
+    """Parse house number into a comparable integer (Queens-aware).
+
+    Queens uses hyphenated block-lot format (e.g. '133-14' = block 133, lot 14).
+    CSCL stores these as '133-014'. Tickets may have '133-14' or '13314'.
+    We convert to block*10000+lot for proper numeric comparison.
+    Non-Queens boroughs use plain numbers.
+    """
+    if not raw or (hasattr(raw, '__class__') and pd.isna(raw)):
+        return None
+    s = str(raw).strip()
+    if not s or s == "0":
+        return None
+    # Hyphenated format: '133-14', '198-008'
+    m = re.match(r"^(\d+)-(\d+)$", s)
+    if m:
+        block, lot = int(m.group(1)), int(m.group(2))
+        if block == 0 and lot == 0:
+            return None
+        return block * 10000 + lot
+    # Plain number
+    m = re.match(r"^(\d+)$", s)
+    if m:
+        num = int(m.group(1))
+        if num == 0:
+            return None
+        if is_queens and num >= 100:
+            return (num // 100) * 10000 + (num % 100)
+        return num
+    return None
+
+
 BORO_NAMES = {
     "1": "Manhattan", "2": "Bronx", "3": "Brooklyn",
     "4": "Queens", "5": "Staten Island",
@@ -115,6 +149,7 @@ def main():
         name = row.get("full_street_name") or row.get("stname_label") or ""
         boro_code = row["_boro"]
         boro_name = BORO_NAMES.get(boro_code, "Unknown")
+        is_queens = (boro_code == "4")
         if pid:
             pid_to_name[pid] = name
             pid_to_boro[pid] = boro_name
@@ -123,15 +158,14 @@ def main():
             lo_raw = row.get(f"{side}_low_hn")
             hi_raw = row.get(f"{side}_high_hn")
             if lo_raw and hi_raw:
-                try:
-                    lo = int(re.match(r"(\d+)", str(lo_raw)).group(1))
-                    hi = int(re.match(r"(\d+)", str(hi_raw)).group(1))
+                lo = _parse_hn(lo_raw, is_queens)
+                hi = _parse_hn(hi_raw, is_queens)
+                if lo is not None and hi is not None:
+                    lo, hi = min(lo, hi), max(lo, hi)
                     if low is None or lo < low:
                         low = lo
                     if high is None or hi > high:
                         high = hi
-                except Exception:
-                    pass
         span = (high - low) if (low is not None and high is not None) else 0
         if pid:
             pid_to_span[pid] = span
@@ -146,13 +180,15 @@ def main():
     t0 = time.time()
     tickets["_norm_street"] = tickets["street_name"].apply(normalize_v3)
 
-    def extract_hn(hn):
-        if pd.isna(hn) or not hn:
-            return None
-        m = re.match(r"(\d+)", str(hn).strip())
-        return int(m.group(1)) if m else None
-
-    tickets["_house_num"] = tickets["house_number"].apply(extract_hn)
+    # Parse house numbers — Queens-aware (vectorized for speed)
+    _is_queens = tickets["_boro_code"].astype(str) == "4"
+    tickets["_house_num"] = tickets["house_number"].apply(lambda hn: _parse_hn(hn, is_queens=False))
+    # Re-parse Queens rows with is_queens=True
+    queens_mask = _is_queens & tickets["house_number"].notna()
+    if queens_mask.any():
+        tickets.loc[queens_mask, "_house_num"] = tickets.loc[queens_mask, "house_number"].apply(
+            lambda hn: _parse_hn(hn, is_queens=True)
+        )
     unique_pairs = tickets.groupby(["_norm_street", "_boro_code"]).size().reset_index()
     pair_segments = {}
     for _, row in unique_pairs.iterrows():
@@ -277,15 +313,7 @@ def main():
             seg_stats[pid]["skipped_days"] += 1
         seg_stats[pid]["total_tickets"] += n_tix
 
-    # Also count sweep-only days (swept but no ticket)
-    # This matters for accurate skip rate denominator
-    for pid in seg_stats:
-        # Count total days this segment was swept in the full year
-        total_sweep_days = sum(1 for key in sweep_index if key[0] == pid)
-        seg_stats[pid]["total_sweep_days_gps"] = total_sweep_days
-
-    # Actually, iterating all sweep_index keys per segment is slow.
-    # Pre-build segment -> total sweep days
+    # Pre-build segment -> total sweep days (fast O(n) pass)
     print("  Counting total sweep days per segment...")
     seg_total_sweep_days = defaultdict(int)
     for (pid, d) in sweep_index:
