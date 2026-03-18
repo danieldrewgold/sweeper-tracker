@@ -220,6 +220,7 @@ def main():
         if not segs:
             continue
         house = row["_house_num"]
+        house = None if not pd.notna(house) else house
         pid = None
         if house is not None:
             for seg in segs:
@@ -228,7 +229,19 @@ def main():
                         pid = seg["physical_id"]
                         break
         if pid is None:
-            pid = segs[0]["physical_id"]
+            if len(segs) == 1:
+                pid = segs[0]["physical_id"]
+            elif house is not None:
+                best_pid, best_dist = None, float('inf')
+                for seg in segs:
+                    if seg["addr_low"] is not None and seg["addr_high"] is not None:
+                        lo, hi = seg["addr_low"], seg["addr_high"]
+                        dist = max(0, lo - house) if house < lo else max(0, house - hi) if house > hi else 0
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_pid = seg["physical_id"]
+                if best_dist <= 20:
+                    pid = best_pid
         pids[idx] = pid
     tickets["physical_id"] = pids
     matched = sum(1 for p in pids if p is not None)

@@ -228,6 +228,7 @@ def match_tickets_to_segments(tickets, lookup):
             continue
 
         house = row["_house_num"]
+        house = None if not pd.notna(house) else house
         pid = None
         if house is not None:
             for seg in segs:
@@ -239,10 +240,24 @@ def match_tickets_to_segments(tickets, lookup):
                     break
 
         if pid is None:
-            pid = segs[0]["physical_id"]
+            if len(segs) == 1:
+                pid = segs[0]["physical_id"]
+            elif house is not None:
+                best_pid, best_dist = None, float('inf')
+                for seg in segs:
+                    for lo, hi in seg["ranges"]:
+                        dist = max(0, lo - house) if house < lo else max(0, house - hi) if house > hi else 0
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_pid = seg["physical_id"]
+                if best_dist <= 20:
+                    pid = best_pid
 
-        pids[idx] = pid
-        matched += 1
+        if pid is not None:
+            pids[idx] = pid
+            matched += 1
+        else:
+            continue
 
         if (idx + 1) % 200000 == 0:
             elapsed = time.time() - t0

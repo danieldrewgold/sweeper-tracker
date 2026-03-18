@@ -175,7 +175,22 @@ def main():
                     if seg['addr_low'] <= house <= seg['addr_high']:
                         return seg['physical_id']
 
-        return segs[0]['physical_id'] if segs else None
+        # Smart fallback: single-segment streets use that segment;
+        # multi-segment streets try nearest range; otherwise drop
+        if len(segs) == 1:
+            return segs[0]['physical_id']
+        if house is not None:
+            best_pid, best_dist = None, float('inf')
+            for seg in segs:
+                if seg['addr_low'] is not None and seg['addr_high'] is not None:
+                    lo, hi = seg['addr_low'], seg['addr_high']
+                    dist = max(0, lo - house) if house < lo else max(0, house - hi) if house > hi else 0
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_pid = seg['physical_id']
+            if best_dist <= 20:
+                return best_pid
+        return None
 
     print('Matching tickets to segments...')
     matched = 0
