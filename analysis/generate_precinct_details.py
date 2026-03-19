@@ -275,9 +275,10 @@ def format_house_range(low, high):
     return f"{low_clean} to {high_clean}"
 
 
-def get_house_numbers_batch(pids):
-    """Fetch house numbers for pids from CSCL API."""
+def get_house_numbers_and_coords_batch(pids):
+    """Fetch house numbers and center coordinates for pids from CSCL API."""
     pid_houses = {}
+    pid_coords = {}
     chunk_size = 40
     pid_list = list(pids)
 
@@ -285,7 +286,7 @@ def get_house_numbers_batch(pids):
         chunk = pid_list[i:i+chunk_size]
         where_clause = " OR ".join(f"physicalid='{p}'" for p in chunk)
         params = {
-            "$select": "physicalid, l_low_hn, l_high_hn, r_low_hn, r_high_hn",
+            "$select": "physicalid, l_low_hn, l_high_hn, r_low_hn, r_high_hn, the_geom",
             "$where": where_clause,
             "$limit": len(chunk),
         }
@@ -304,11 +305,21 @@ def get_house_numbers_batch(pids):
                         pid_houses[pid] = format_house_range(l_low, l_high)
                     else:
                         pid_houses[pid] = ""
+                    # Extract center coordinates from geometry
+                    geom = row.get("the_geom")
+                    if geom and geom.get("type") == "MultiLineString":
+                        coords = geom.get("coordinates", [])
+                        # Flatten all coordinate pairs and compute centroid
+                        all_pts = [pt for line in coords for pt in line]
+                        if all_pts:
+                            avg_lng = round(sum(p[0] for p in all_pts) / len(all_pts), 6)
+                            avg_lat = round(sum(p[1] for p in all_pts) / len(all_pts), 6)
+                            pid_coords[pid] = (avg_lat, avg_lng)
         except Exception as e:
             print(f"  CSCL error: {e}")
         time.sleep(0.05)
 
-    return pid_houses
+    return pid_houses, pid_coords
 
 
 PRECINCT_CACHE = os.path.join(PROJECT_DIR, "sweep_analysis_output/pid_precinct_cache.json")
@@ -391,16 +402,16 @@ def main():
             "worst_segs": ranked,
         }
 
-    # 7. Fetch house numbers for worst blocks
-    print(f"Fetching house numbers for {len(worst_pids)} worst blocks...")
-    pid_houses = get_house_numbers_batch(worst_pids)
+    # 7. Fetch house numbers and coordinates for worst blocks
+    print(f"Fetching house numbers and coordinates for {len(worst_pids)} worst blocks...")
+    pid_houses, pid_coords = get_house_numbers_and_coords_batch(worst_pids)
 
     # 8. Output TypeScript
     lines = []
     lines.append('export interface PrecinctDetail {')
     lines.append('  borough: string;')
     lines.append('  segments: number;')
-    lines.append('  worstBlocks: { street: string; houses: string; noSweep: number; confirmed: number; skipRate: number }[];')
+    lines.append('  worstBlocks: { street: string; houses: string; noSweep: number; confirmed: number; skipRate: number; pid: string; lat: number; lng: number }[];')
     lines.append('}')
     lines.append('')
     lines.append('export const PRECINCT_DETAILS: Record<number, PrecinctDetail> = {')
@@ -414,9 +425,12 @@ def main():
             confirmed = s.get("confirmed_tickets", s["total_tickets"] - s["tickets_on_skip_days"])
             skipRate = s["skip_rate"]
             street_display = clean_street_name(s["street_name"])
+            pid = s["pid"]
+            lat, lng = pid_coords.get(pid, (0, 0))
             blocks.append(
                 f'{{ street: {json.dumps(street_display)}, houses: {json.dumps(houses)}, '
-                f'noSweep: {noSweep}, confirmed: {confirmed}, skipRate: {skipRate} }}'
+                f'noSweep: {noSweep}, confirmed: {confirmed}, skipRate: {skipRate}, '
+                f'pid: {json.dumps(pid)}, lat: {lat}, lng: {lng} }}'
             )
         blocks_str = ", ".join(blocks)
         lines.append(

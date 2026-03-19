@@ -25,6 +25,7 @@ import { TriangleUpIcon, TriangleDownIcon, ChevronDownIcon, ChevronUpIcon, Searc
 import { HEADLINE_STATS, CASE_STUDIES, PRECINCT_DATA, META } from '../data/dataFacts';
 import { PRECINCT_DETAILS } from '../data/precinctDetails';
 import { useRoute } from '../hooks/useRoute';
+import { useSweepStore } from '../store';
 
 type SortField = 'precinct' | 'total' | 'noSweep' | 'noSweepRate';
 type SortDir = 'asc' | 'desc';
@@ -46,6 +47,13 @@ const TOP_10_WORST = new Set(
 
 export default function DataFactsPage() {
   const [, navigate] = useRoute();
+  const setUserBlock = useSweepStore((s) => s.setUserBlock);
+
+  const viewOnMap = (pid: string, lat: number, lng: number, address: string) => {
+    setUserBlock(address, pid, [lat, lng]);
+    navigate('map');
+  };
+
   const [sortField, setSortField] = useState<SortField>('noSweepRate');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [methodologyOpen, setMethodologyOpen] = useState(false);
@@ -301,6 +309,17 @@ export default function DataFactsPage() {
                     </Text>
                   </Box>
                 )}
+                {cs.location && (
+                  <Button
+                    size="sm"
+                    colorScheme="blue"
+                    variant="outline"
+                    mt={4}
+                    onClick={() => viewOnMap(cs.location!.pid, cs.location!.lat, cs.location!.lng, cs.location!.address)}
+                  >
+                    View on map
+                  </Button>
+                )}
               </Box>
             </Box>
           ))}
@@ -441,7 +460,19 @@ export default function DataFactsPage() {
                                   </Text>
                                   {detail.worstBlocks.map((b, i) => (
                                     <HStack key={i} spacing={2} fontSize="xs" color="gray.600">
-                                      <Text fontWeight="500" color="gray.700" minW="fit-content">
+                                      <Text
+                                        as="button"
+                                        fontWeight="500"
+                                        color="blue.600"
+                                        minW="fit-content"
+                                        cursor="pointer"
+                                        _hover={{ textDecoration: 'underline', color: 'blue.800' }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const address = `${b.street}${b.houses ? ` (${b.houses})` : ''}`;
+                                          viewOnMap(b.pid, b.lat, b.lng, address);
+                                        }}
+                                      >
                                         {b.street}{b.houses ? ` (${b.houses})` : ''}
                                       </Text>
                                       <Badge
