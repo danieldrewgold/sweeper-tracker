@@ -11,6 +11,8 @@ export interface CaseStudy {
   description: string;
   stats: { label: string; value: string; color?: string }[];
   highlight?: string;
+  /** Physical ID + coordinates for "View on map" linking */
+  location?: { pid: string; lat: number; lng: number; address: string };
 }
 
 export interface PrecinctRow {
@@ -59,6 +61,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { label: 'GPS visits recorded', value: '4', color: 'blue.500' },
     ],
     highlight: 'Tue=96%, Thu=98%, Sat=98%. The sweeper comes roughly once every 2\u20133 months per day. 86 tickets at $65 = $5,590 in fines.',
+    location: { pid: '16718', lat: 40.718964, lng: -73.984654, address: '164 Rivington St, Manhattan' },
   },
   {
     title: 'Queens Blvd (116-001\u2013117-099), Rego Park \u2014 97% Skip Rate',
@@ -71,6 +74,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { label: 'GPS visits recorded', value: '~2', color: 'blue.500' },
     ],
     highlight: 'Mon=96%, Tue=96%, Wed=96%, Thu=96%, Fri=98%, Sat=98%. Every day of the week skipped 96\u201398% of the time. No tickets issued despite being an active ASP zone.',
+    location: { pid: '12411', lat: 40.715775, lng: -73.832724, address: '116-01 Queens Blvd, Queens' },
   },
   {
     title: 'Myrtle Ave (488\u2013524), Brooklyn \u2014 86% Skip Rate, 185 Tickets',
@@ -83,6 +87,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { label: 'GPS visits recorded', value: '10', color: 'blue.500' },
     ],
     highlight: 'Mon=98%, Tue=96%, Wed=96%, Thu=98%, Fri=96%, Sat=96%. All 6 sweep days skipped 96\u201398% of the time. 185 tickets at $65 = $12,025.',
+    location: { pid: '204646', lat: 40.693484, lng: -73.965038, address: '488 Myrtle Ave, Brooklyn' },
   },
   {
     title: 'Ocean Pkwy (2001\u20132099), Brooklyn \u2014 90% Skip Rate, 48 Tickets',
@@ -95,6 +100,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { label: 'GPS visits recorded', value: '2', color: 'blue.500' },
     ],
     highlight: 'Fri=96%. The sweeper came only twice in 10 months on this block. 48 tickets at $65 = $3,120 in fines.',
+    location: { pid: '38814', lat: 40.598967, lng: -73.965696, address: '2001 Ocean Pkwy, Brooklyn' },
   },
   {
     title: 'Dreiser Loop (141\u2013143), Bronx \u2014 76% Skip Rate, Co-op City',
@@ -107,6 +113,7 @@ export const CASE_STUDIES: CaseStudy[] = [
       { label: 'GPS visits recorded', value: '5', color: 'blue.500' },
     ],
     highlight: 'Thu=91%. The sweeper comes roughly once every 2 months on Thursdays. Yet tickets are written consistently. 28 tickets at $65 = $1,820 in fines.',
+    location: { pid: '121711', lat: 40.876194, lng: -73.830031, address: '141 Dreiser Loop, Bronx' },
   },
 ];
 
