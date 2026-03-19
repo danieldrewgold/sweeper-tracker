@@ -1,15 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import { useSweepStore } from '../store';
-import { scanVisibleSegments, resetScannerCache } from '../services/realtimeSweepScanner';
+import { scanVisibleSegments, resetScannerCache, abortCurrentScan } from '../services/realtimeSweepScanner';
 import { getSegmentCenter } from '../utils/geo';
 import type { CsclSegment } from '../types/cscl';
 
-/** Short debounce — just enough for the map to settle after pan/zoom */
-const SCAN_DEBOUNCE_MS = 100;
-
 /** Re-scan interval to catch sweepers that arrive after initial scan */
-const RESCAN_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
+const RESCAN_INTERVAL_MS = 3 * 60 * 1000;
 
 /** Get segments within current map bounds */
 function getVisibleSegments(map: L.Map, segments: Map<string, CsclSegment>): Map<string, CsclSegment> {
@@ -24,48 +21,55 @@ function getVisibleSegments(map: L.Map, segments: Map<string, CsclSegment>): Map
   return visible;
 }
 
-/**
- * Watches the segments store and viewport changes, triggers real-time sweep
- * status scanning via the sweepinfo API. Prioritizes the current viewport —
- * panning/zooming aborts any in-progress scan for the old viewport.
- */
 export function useRealtimeSweep() {
   const map = useMap();
   const segments = useSweepStore((s) => s.segments);
   const sweepActive = useSweepStore((s) => s.sweepActive);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rescanRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Scan when segments change OR viewport moves (debounced)
-  // scanVisibleSegments auto-aborts any running scan, so new viewport always wins
+  // When new segments load — scan them (queues behind any running scan, doesn't abort)
   useEffect(() => {
     if (!sweepActive) return;
 
-    const triggerScan = () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        const visible = getVisibleSegments(map, useSweepStore.getState().segments);
-        if (visible.size > 0) {
-          scanVisibleSegments(visible).catch((err) =>
-            console.error('Real-time sweep scan failed:', err)
-          );
-        }
-      }, SCAN_DEBOUNCE_MS);
-    };
-
-    // Trigger on segment changes
-    triggerScan();
-
-    // Also trigger on viewport changes (pan/zoom)
-    map.on('moveend', triggerScan);
+    if (scanDebounce.current) clearTimeout(scanDebounce.current);
+    scanDebounce.current = setTimeout(() => {
+      const visible = getVisibleSegments(map, segments);
+      if (visible.size > 0) {
+        scanVisibleSegments(visible).catch(console.error);
+      }
+    }, 150);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      map.off('moveend', triggerScan);
+      if (scanDebounce.current) clearTimeout(scanDebounce.current);
     };
   }, [segments, sweepActive, map]);
 
-  // Periodic re-scan — only re-query segments currently visible in the viewport
+  // When viewport changes (pan/zoom) — abort old scan, restart for new viewport
+  useEffect(() => {
+    if (!sweepActive) return;
+
+    const onMoveEnd = () => {
+      // Abort whatever's running for the old viewport
+      abortCurrentScan();
+
+      // Short delay then scan the new viewport
+      if (scanDebounce.current) clearTimeout(scanDebounce.current);
+      scanDebounce.current = setTimeout(() => {
+        const visible = getVisibleSegments(map, useSweepStore.getState().segments);
+        if (visible.size > 0) {
+          scanVisibleSegments(visible).catch(console.error);
+        }
+      }, 200);
+    };
+
+    map.on('moveend', onMoveEnd);
+    return () => {
+      map.off('moveend', onMoveEnd);
+    };
+  }, [sweepActive, map]);
+
+  // Periodic re-scan for segments that weren't swept earlier but might be now
   useEffect(() => {
     if (!sweepActive) return;
 
@@ -76,6 +80,7 @@ export function useRealtimeSweep() {
       const visible = getVisibleSegments(map, allSegments);
       if (visible.size > 0) {
         resetScannerCache();
+        abortCurrentScan();
         scanVisibleSegments(visible).catch(console.error);
       }
     }, RESCAN_INTERVAL_MS);

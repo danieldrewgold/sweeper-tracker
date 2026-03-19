@@ -12,29 +12,42 @@ const confirmedSwept = new Set<string>();
 const checkedNotSwept = new Set<string>();
 let queriedDate = '';
 
-/** Abort controller for the current scan — allows cancellation when viewport changes */
+/** Abort controller for the current scan — allows cancellation on viewport change */
 let currentAbort: AbortController | null = null;
+let scanning = false;
+let pendingSegments: Map<string, CsclSegment> = new Map();
 
 function getTodayStr(): string {
   return new Date().toDateString();
 }
 
-/** Reset cache for periodic re-scan. Only clears not-swept segments —
- *  swept segments don't need re-checking (streets don't un-sweep). */
+/** Reset cache for periodic re-scan. Only clears not-swept segments. */
 export function resetScannerCache() {
   checkedNotSwept.clear();
 }
 
-/**
- * Scan visible segments for real-time sweep status.
- *
- * If a scan is already running, it is ABORTED so the new viewport gets
- * priority. Already-fetched results from the aborted scan are kept.
- */
-export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
-  // Abort any running scan — the new viewport takes priority
+/** Abort the current scan (call on viewport change so new area gets priority) */
+export function abortCurrentScan() {
   if (currentAbort) {
     currentAbort.abort();
+    currentAbort = null;
+    scanning = false;
+    pendingSegments.clear();
+  }
+}
+
+/**
+ * Scan segments for real-time sweep status.
+ * If a scan is already running, queues segments and processes after.
+ * Call abortCurrentScan() separately when viewport changes.
+ */
+export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
+  // If already scanning, queue these and they'll be picked up after
+  if (scanning) {
+    for (const [id, seg] of segments) {
+      pendingSegments.set(id, seg);
+    }
+    return;
   }
 
   const abort = new AbortController();
@@ -42,7 +55,7 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
   const today = getTodayStr();
 
-  // Date rollover — clear all caches
+  // Date rollover
   if (queriedDate !== today) {
     confirmedSwept.clear();
     checkedNotSwept.clear();
@@ -50,7 +63,6 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
     useSweepStore.getState().clearRealtimeSweepStatus();
   }
 
-  // Find segments we haven't queried yet
   const toQuery: Array<{ id: string; lat: number; lng: number }> = [];
   for (const [id, segment] of segments) {
     if (confirmedSwept.has(id) || checkedNotSwept.has(id)) continue;
@@ -61,13 +73,19 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
   if (toQuery.length === 0) {
     currentAbort = null;
+    // Still check pending
+    if (pendingSegments.size > 0) {
+      const queued = pendingSegments;
+      pendingSegments = new Map();
+      return scanVisibleSegments(queued);
+    }
     return;
   }
 
+  scanning = true;
+
   try {
-    // Process in batches of CONCURRENCY
     for (let i = 0; i < toQuery.length; i += CONCURRENCY) {
-      // Check if this scan was aborted (new viewport arrived)
       if (abort.signal.aborted) return;
 
       const batch = toQuery.slice(i, i + CONCURRENCY);
@@ -107,15 +125,21 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
       await Promise.all(promises);
 
-      // Push batch results to store progressively (even if aborting — keep what we got)
       if (batchResults.size > 0) {
         useSweepStore.getState().mergeRealtimeSweepStatus(batchResults);
       }
     }
   } finally {
-    // Only clear currentAbort if this is still the active scan
+    scanning = false;
     if (currentAbort === abort) {
       currentAbort = null;
+    }
+
+    // Process any segments that arrived while scanning
+    if (pendingSegments.size > 0 && !abort.signal.aborted) {
+      const queued = pendingSegments;
+      pendingSegments = new Map();
+      scanVisibleSegments(queued).catch(console.error);
     }
   }
 }
