@@ -268,6 +268,25 @@ def match_tickets_to_segments(tickets, lookup):
     elapsed = time.time() - t0
     match_rate = matched / len(tickets) * 100
     print(f"  Matched: {matched:,} / {len(tickets):,} ({match_rate:.1f}%) in {elapsed:.1f}s")
+
+    # Fill in geocoded letter tickets
+    letter_pid_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                   "sweep_analysis_output", "letter_ticket_pids.json")
+    if os.path.exists(letter_pid_path):
+        import json as _json
+        with open(letter_pid_path) as f:
+            letter_pids = _json.load(f)
+        filled = 0
+        for idx, row in tickets.iterrows():
+            if pids[idx] is None:
+                sn = str(row.get("summons_number", ""))
+                if sn in letter_pids:
+                    pids[idx] = letter_pids[sn]
+                    filled += 1
+        tickets["physical_id"] = pids
+        matched += filled
+        print(f"  + {filled:,} letter tickets filled from geocoding (total {matched:,})")
+
     return tickets
 
 
@@ -975,11 +994,27 @@ def main():
     # Load
     sweeps, tickets, cscl = load_data()
 
-    # Build CSCL lookup
-    lookup = build_cscl_lookup(cscl)
-
-    # Match tickets to segments
-    tickets = match_tickets_to_segments(tickets, lookup)
+    # Match tickets to segments — use step1's matches if available
+    match_path = os.path.join(OUT_DIR, "ticket_pid_matches.json")
+    if os.path.exists(match_path):
+        print(f"\nLoading ticket-to-PID matches from step1...")
+        with open(match_path) as f:
+            match_map = json.load(f)
+        print(f"  Loaded {len(match_map):,} matches from step1")
+        pids = [None] * len(tickets)
+        matched = 0
+        for idx, row in tickets.iterrows():
+            sn = str(row.get("summons_number", ""))
+            if sn in match_map:
+                pids[idx] = match_map[sn]
+                matched += 1
+        tickets["physical_id"] = pids
+        print(f"  Applied: {matched:,} / {len(tickets):,} ({matched/len(tickets)*100:.1f}%)")
+    else:
+        print(f"\nWARNING: No step1 matches found at {match_path}")
+        print(f"  Run skip_step1_chronic.py first! Falling back to independent matching...")
+        lookup = build_cscl_lookup(cscl)
+        tickets = match_tickets_to_segments(tickets, lookup)
 
     # Build sweep index
     sweep_index, sweep_dates, swept_segments, segment_dates = build_sweep_index(sweeps)

@@ -247,6 +247,36 @@ def main():
     matched = sum(1 for p in pids if p is not None)
     print(f"  Matched: {matched:,} in {time.time()-t0:.1f}s")
 
+    # ─── Fill in geocoded letter tickets ───
+    letter_pid_path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                   "sweep_analysis_output", "letter_ticket_pids.json")
+    if os.path.exists(letter_pid_path):
+        with open(letter_pid_path) as f:
+            letter_pids = json.load(f)
+        filled = 0
+        for idx, row in tickets.iterrows():
+            if pids[idx] is None:
+                sn = str(row.get("summons_number", ""))
+                if sn in letter_pids:
+                    pids[idx] = letter_pids[sn]
+                    filled += 1
+        tickets["physical_id"] = pids
+        matched += filled
+        print(f"  + {filled:,} letter tickets filled from geocoding (total {matched:,})")
+
+    # ─── Save ticket-to-PID matches for downstream scripts ───
+    match_map = {}
+    for idx, row in tickets.iterrows():
+        pid = pids[idx]
+        if pid is not None:
+            sn = str(row.get("summons_number", ""))
+            if sn:
+                match_map[sn] = str(pid)
+    match_path = os.path.join(OUT_DIR, "ticket_pid_matches.json")
+    with open(match_path, "w") as f:
+        json.dump(match_map, f)
+    print(f"  Saved ticket_pid_matches.json ({len(match_map):,} matches)")
+
     # ─── Build sweep index: (pid, date) -> [minutes_from_midnight] ───
     print("Building sweep index...")
     t0 = time.time()

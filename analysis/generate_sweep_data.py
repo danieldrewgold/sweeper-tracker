@@ -279,3 +279,111 @@ if __name__ == '__main__':
 
     size_kb = os.path.getsize(OUT_FILE) / 1024
     print(f"\nOutput: {OUT_FILE} ({size_kb:.0f} KB)")
+
+    # ─── Generate pipeline_summary.json ───
+    # Compute GPS-active-DOW filtered ticket counts from step1 + crossref
+    print("\nGenerating pipeline_summary.json...")
+
+    # Load crossref to count no-sweep vs confirmed per PID, filtered to GPS-active DOW
+    crossref_path = os.path.join(OUTPUT_DIR, 'crossref_full_year.csv')
+    step1_path = os.path.join(OUTPUT_DIR, 'step1_segment_skip_rates.csv')
+
+    # Get total raw tickets
+    raw_ticket_path = os.path.join(PROJECT_DIR, 'sweep_data', 'tickets_full_year.json')
+    with open(raw_ticket_path) as f:
+        raw_tickets = len(json.load(f))
+
+    # Get total matched from ticket_pid_matches
+    match_path = os.path.join(OUTPUT_DIR, 'ticket_pid_matches.json')
+    if os.path.exists(match_path):
+        with open(match_path) as f:
+            matched_tickets = len(json.load(f))
+    else:
+        matched_tickets = 0
+
+    # step1 totals
+    step1_total = 0
+    step1_segments = 0
+    step1_skip_tickets = 0
+    with open(step1_path) as f:
+        for row in csv.DictReader(f):
+            step1_segments += 1
+            step1_total += int(row['total_tickets'])
+            step1_skip_tickets += int(row['tickets_on_skip_days'])
+
+    # GPS-active-DOW filtering: for each PID, determine which DOW are active
+    # A DOW is active if the sweeper has visited at least once on that day
+    # Then only count crossref tickets on GPS-active DOW
+    # NOTE: We rebuild DOW from GPS data directly, since reliability entries
+    # may have had DOW stripped (for reliable segments <= 10% skip rate)
+    print("  Building GPS-active-DOW from raw GPS data...")
+    gps_active_dow = {}  # pid -> set of DOW indices
+    gps_path = os.path.join(PROJECT_DIR, 'sweep_data', 'sweep_gps_full_year.json')
+    with open(gps_path) as f:
+        gps_data = json.load(f)
+    from collections import defaultdict as _dd
+    pid_dow_visits = _dd(lambda: _dd(int))
+    for rec in gps_data:
+        pid = str(rec.get('physical_id', ''))
+        try:
+            d_obj = datetime.fromisoformat(rec['date_visited'].replace('Z', '+00:00')).date()
+            dow = d_obj.weekday()
+            if dow < 6:  # Mon-Sat only
+                pid_dow_visits[pid][dow] += 1
+        except (ValueError, KeyError):
+            continue
+    for pid, dow_counts in pid_dow_visits.items():
+        active = {dow for dow, count in dow_counts.items() if count > 0}
+        if active:
+            gps_active_dow[pid] = active
+    print(f"  GPS-active-DOW computed for {len(gps_active_dow):,} segments")
+
+    # Count crossref tickets filtered to GPS-active DOW
+    no_sweep_filtered = 0
+    confirmed_filtered = 0
+    total_filtered = 0
+
+    if os.path.exists(crossref_path):
+        with open(crossref_path) as f:
+            for row in csv.DictReader(f):
+                pid = str(row['physical_id']).strip()
+                active = gps_active_dow.get(pid)
+                if active is None:
+                    continue  # no GPS data for this PID
+                try:
+                    d = datetime.strptime(row['date'], '%Y-%m-%d').date() if '-' in str(row.get('date','')) else datetime.strptime(row['violation_date'], '%Y-%m-%d').date()
+                except (ValueError, KeyError):
+                    continue
+                dow = d.weekday()
+                if dow not in active:
+                    continue  # ticket on non-GPS-active DOW, skip
+                total_filtered += 1
+                if row['category'] == 'no_sweep':
+                    no_sweep_filtered += 1
+                else:
+                    confirmed_filtered += 1
+
+    # Count segments with data in sweepData
+    segments_with_tickets = sum(1 for e in reliability.values() if e[2] > 0)
+    segments_total = len(reliability)
+
+    summary = {
+        'raw_tickets': raw_tickets,
+        'matched_tickets': matched_tickets,
+        'on_analyzed_segments': step1_total,
+        'segments_analyzed': step1_segments,
+        'step1_skip_tickets': step1_skip_tickets,
+        'gps_active_dow_total': total_filtered,
+        'no_sweep_tickets': no_sweep_filtered,
+        'confirmed_tickets': confirmed_filtered,
+        'segments_in_app': segments_total,
+        'segments_with_tickets': segments_with_tickets,
+    }
+
+    summary_path = os.path.join(OUTPUT_DIR, 'pipeline_summary.json')
+    with open(summary_path, 'w') as f:
+        json.dump(summary, f, indent=2)
+    print(f"  Pipeline summary:")
+    for k, v in summary.items():
+        print(f"    {k}: {v:,}")
+    print(f"  Saved to {summary_path}")

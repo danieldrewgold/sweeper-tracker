@@ -1,0 +1,12 @@
+{
+  "raw_tickets": 1064663,
+  "matched_tickets": 946446,
+  "on_analyzed_segments": 867216,
+  "segments_analyzed": 27627,
+  "step1_skip_tickets": 127905,
+  "gps_active_dow_total": 906907,
+  "no_sweep_tickets": 79618,
+  "confirmed_tickets": 827289,
+  "segments_in_app": 38524,
+  "segments_with_tickets": 27627
+}
