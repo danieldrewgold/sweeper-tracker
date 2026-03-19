@@ -9,8 +9,8 @@ function gridKey(lat: number, lng: number, radius: number): string {
   return `${Math.round(lat * 1000) / 1000},${Math.round(lng * 1000) / 1000},${radius}`;
 }
 
-/** Max parallel CSCL fetches to avoid hammering SODA */
-const MAX_PARALLEL = 4;
+/** Max parallel CSCL fetches */
+const MAX_PARALLEL = 6;
 
 export function useMapSegments() {
   const addSegments = useSweepStore((s) => s.addSegments);
@@ -81,11 +81,11 @@ export function useMapSegments() {
   useMapEvents({
     moveend: (e) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => fetchForView(e.target), 500);
+      timerRef.current = setTimeout(() => fetchForView(e.target), 200);
     },
     zoomend: (e) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => fetchForView(e.target), 500);
+      timerRef.current = setTimeout(() => fetchForView(e.target), 200);
     },
   });
 

@@ -6,7 +6,7 @@ import { getSegmentCenter } from '../utils/geo';
 import type { CsclSegment } from '../types/cscl';
 
 /** Short debounce — just enough for the map to settle after pan/zoom */
-const SCAN_DEBOUNCE_MS = 300;
+const SCAN_DEBOUNCE_MS = 100;
 
 /** Re-scan interval to catch sweepers that arrive after initial scan */
 const RESCAN_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
