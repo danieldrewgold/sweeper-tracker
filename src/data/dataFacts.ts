@@ -64,17 +64,17 @@ export const CASE_STUDIES: CaseStudy[] = [
     location: { pid: '16718', lat: 40.718964, lng: -73.984654, address: '164 Rivington St, Manhattan' },
   },
   {
-    title: 'Queens Blvd (116-001\u2013117-099), Rego Park \u2014 97% Skip Rate',
-    borough: 'Queens',
+    title: 'Eastern Pkwy (453\u2013537), Crown Heights \u2014 63% Skip Rate, 192 Tickets',
+    borough: 'Brooklyn',
     description:
-      'This Queens Blvd segment near 116th St has 6 scheduled sweep days but GPS shows the sweeper almost never arrives. Skipped on virtually every scheduled day across the entire analysis period.',
+      'This Eastern Parkway block between 453 and 537 is scheduled for sweeping on Tuesdays, Fridays, and Saturdays. The sweeper skips the majority of scheduled days on all three. 192 tickets were issued, overwhelmingly on days the sweeper never came.',
     stats: [
-      { label: 'Skip rate', value: '96.9%', color: 'red.500' },
-      { label: 'Tickets issued', value: '0', color: 'blue.500' },
-      { label: 'GPS visits recorded', value: '~2', color: 'blue.500' },
+      { label: 'Skip rate', value: '63.0%', color: 'red.500' },
+      { label: 'Tickets issued', value: '192', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '~40', color: 'blue.500' },
     ],
-    highlight: 'Mon=96%, Tue=96%, Wed=96%, Thu=96%, Fri=98%, Sat=98%. Every day of the week skipped 96\u201398% of the time. No tickets issued despite being an active ASP zone.',
-    location: { pid: '12411', lat: 40.715775, lng: -73.832724, address: '116-01 Queens Blvd, Queens' },
+    highlight: 'Tue=74%, Fri=77%, Sat=85%. Saturday sweeps are nearly phantom \u2014 the sweeper shows only 15% of the time. 192 tickets at $65 = $12,480 in fines.',
+    location: { pid: '145563', lat: 40.669929, lng: -73.951564, address: '453 Eastern Pkwy, Brooklyn' },
   },
   {
     title: 'Myrtle Ave (488\u2013524), Brooklyn \u2014 86% Skip Rate, 185 Tickets',
