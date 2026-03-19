@@ -19,8 +19,8 @@ export default function MapLegend() {
   return (
     <Box
       position="absolute"
-      bottom="20px"
-      right="10px"
+      bottom={{ base: '130px', md: '20px' }}
+      right={{ base: '6px', md: '10px' }}
       zIndex={1000}
       bg="whiteAlpha.900"
       backdropFilter="blur(4px)"
