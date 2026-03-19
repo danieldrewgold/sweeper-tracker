@@ -24,6 +24,7 @@ export const FRONTIER_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 export const COLORS = {
   swept: '#22C55E',
   notYet: '#CBD5E1',
+  noAsp: '#D8B4FE',    // lavender — metered / commercial / no street cleaning
   frontier: '#EAB308',
   userBlock: '#3B82F6',
   userBlockWeight: 7,

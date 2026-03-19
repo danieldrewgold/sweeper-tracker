@@ -36,6 +36,7 @@ export default function MapLegend() {
           <LegendItem color={COLORS.notYet} label="Not yet swept" />
         </>
       )}
+      <LegendItem color={COLORS.noAsp} label="No ASP (metered etc.)" />
       <LegendItem color={COLORS.userBlock} label="Your block" />
       {!sweepActive && (
         <Text fontSize="xs" color="gray.500" mt={1}>

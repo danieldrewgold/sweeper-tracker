@@ -5,6 +5,7 @@ import { useSweepStore } from '../store';
 import { useUserBlock } from '../hooks/useUserBlock';
 import { COLORS, FRONTIER_WINDOW_MS, MIN_SEGMENT_ZOOM } from '../utils/constants';
 import { segmentToLatLngs } from '../utils/geo';
+import { getAllPidsSync } from '../services/sweepData';
 
 /**
  * Renders CSCL segments as interactive polylines with sweep status coloring.
@@ -47,7 +48,8 @@ export default function SegmentLayer() {
       if (polylineMapRef.current.has(id)) continue;
 
       // Determine initial color from cached real-time data (avoids gray flash)
-      let initColor: string = COLORS.notYet;
+      const initKnownPids = getAllPidsSync();
+      let initColor: string = (initKnownPids && !initKnownPids.has(id)) ? COLORS.noAsp : COLORS.notYet;
       let initOpacity = 0.7;
       if (rtStatus.has(id)) {
         const visitTime = rtStatus.get(id);
@@ -100,8 +102,11 @@ export default function SegmentLayer() {
       ? sweepVisitTime.toDateString() === todayStr
       : false;
 
+    const knownPids = getAllPidsSync();
+
     for (const [id, polylines] of polylineMapRef.current) {
-      let color: string = COLORS.notYet;
+      // Default: gray (not yet swept) for ASP blocks, lavender for no-ASP blocks
+      let color: string = (knownPids && !knownPids.has(id)) ? COLORS.noAsp : COLORS.notYet;
       let weight: number = COLORS.defaultWeight;
       let opacity = 0.7;
 

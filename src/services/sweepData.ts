@@ -110,6 +110,19 @@ export function getDowTotalsSync(): number[] | null {
   return sweepData?.meta?.dowTotals ?? null;
 }
 
+/** Preload sweep data so sync accessors work immediately. Call once at app init. */
+export function preloadSweepData(): Promise<void> {
+  return loadData().then(() => {});
+}
+
+/** Returns the set of all PIDs that have sweep/ticket data. Synchronous — null if not loaded yet. */
+let _pidCache: Set<string> | null = null;
+export function getAllPidsSync(): Set<string> | null {
+  if (!sweepData) return null;
+  if (!_pidCache) _pidCache = new Set(Object.keys(sweepData.r));
+  return _pidCache;
+}
+
 export async function getDoubleSweepInfo(physicalId: string): Promise<DoubleSweepInfo | null> {
   const data = await loadData();
   const days = data.d[physicalId];
