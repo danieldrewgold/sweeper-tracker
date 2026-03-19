@@ -262,9 +262,22 @@ export default function DataFactsPage() {
             >
               <Box bg="gray.800" px={{ base: 4, md: 6 }} py={3}>
                 <HStack justify="space-between" align="center">
-                  <Text fontWeight="bold" color="white" fontSize={{ base: 'sm', md: 'md' }}>
-                    {cs.title}
-                  </Text>
+                  {cs.location ? (
+                    <Text
+                      fontWeight="bold"
+                      color="blue.200"
+                      fontSize={{ base: 'sm', md: 'md' }}
+                      cursor="pointer"
+                      _hover={{ textDecoration: 'underline' }}
+                      onClick={() => viewOnMap(cs.location!.pid, cs.location!.lat, cs.location!.lng, cs.location!.address)}
+                    >
+                      {cs.title}
+                    </Text>
+                  ) : (
+                    <Text fontWeight="bold" color="white" fontSize={{ base: 'sm', md: 'md' }}>
+                      {cs.title}
+                    </Text>
+                  )}
                   <Badge colorScheme="orange" fontSize="xs">{cs.borough}</Badge>
                 </HStack>
               </Box>
@@ -308,17 +321,6 @@ export default function DataFactsPage() {
                       {cs.highlight}
                     </Text>
                   </Box>
-                )}
-                {cs.location && (
-                  <Button
-                    size="sm"
-                    colorScheme="blue"
-                    variant="outline"
-                    mt={4}
-                    onClick={() => viewOnMap(cs.location!.pid, cs.location!.lat, cs.location!.lng, cs.location!.address)}
-                  >
-                    View on map
-                  </Button>
                 )}
               </Box>
             </Box>
