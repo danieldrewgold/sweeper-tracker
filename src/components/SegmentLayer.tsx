@@ -150,8 +150,7 @@ export default function SegmentLayer() {
         // Use single-block sweepinfo result OR batch scan result
         const batchSwept = realtimeSweepStatus.get(id);
         const isSwept = userSweptToday || (batchSwept !== null && batchSwept !== undefined);
-        const hasAspData = !knownPids || knownPids.has(id);
-        color = isSwept ? COLORS.swept : hasAspData ? COLORS.userBlock : COLORS.noAsp;
+        color = isSwept ? COLORS.swept : COLORS.userBlock;
         weight = COLORS.userBlockWeight;
         opacity = 1;
       }
