@@ -5,7 +5,6 @@ import { useSweepStore } from '../store';
 import { useUserBlock } from '../hooks/useUserBlock';
 import { COLORS, FRONTIER_WINDOW_MS, MIN_SEGMENT_ZOOM } from '../utils/constants';
 import { segmentToLatLngs } from '../utils/geo';
-import { getAllPidsSync } from '../services/sweepData';
 
 /**
  * Renders CSCL segments as interactive polylines with sweep status coloring.
@@ -99,8 +98,6 @@ export default function SegmentLayer() {
     const userSweptToday = sweepVisitTime
       ? sweepVisitTime.toDateString() === todayStr
       : false;
-
-    const knownPids = getAllPidsSync();
 
     // Check which segments have been scanned by sweepinfo
     const rtKeys = realtimeSweepStatus;
