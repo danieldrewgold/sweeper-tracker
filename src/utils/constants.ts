@@ -14,7 +14,7 @@ export const SODA_APP_TOKEN = import.meta.env.VITE_SODA_APP_TOKEN || '';
 // NYC default center (Manhattan, centered for good overview)
 export const NYC_CENTER: [number, number] = [40.7484, -73.9857];
 export const DEFAULT_ZOOM = 14;
-export const MIN_SEGMENT_ZOOM = 14;
+export const MIN_SEGMENT_ZOOM = 13;
 
 // Polling
 export const POLL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
@@ -27,8 +27,8 @@ export const COLORS = {
   noAsp: '#D8B4FE',    // lavender — metered / commercial / no street cleaning
   frontier: '#EAB308',
   userBlock: '#3B82F6',
-  userBlockWeight: 7,
-  defaultWeight: 4,
+  userBlockWeight: 8,
+  defaultWeight: 6,
 } as const;
 
 // CSCL fetch radius in meters

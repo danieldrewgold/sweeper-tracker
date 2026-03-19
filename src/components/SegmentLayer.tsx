@@ -60,23 +60,41 @@ export default function SegmentLayer() {
       const polylines: L.Polyline[] = [];
 
       for (const line of latLngs) {
+        // Invisible wide tap target for easier mobile tapping
+        const tapTarget = L.polyline(line, {
+          color: 'transparent',
+          weight: 20,
+          opacity: 0,
+          interactive: true,
+        });
+
         const polyline = L.polyline(line, {
           color: initColor,
           weight: COLORS.defaultWeight,
           opacity: initOpacity,
           interactive: true,
         });
-        polyline.on('click', () => selectFromClickRef.current(id));
-        polyline.on('mouseover', function (this: L.Polyline) {
+
+        const handleClick = () => selectFromClickRef.current(id);
+        const handleOver = () => {
           if (lastHoveredId === id) return;
           lastHoveredId = id;
-          this.setStyle({ weight: 6 });
-        });
-        polyline.on('mouseout', function (this: L.Polyline) {
+          polyline.setStyle({ weight: COLORS.defaultWeight + 3 });
+        };
+        const handleOut = () => {
           if (lastHoveredId === id) lastHoveredId = null;
           const isUser = id === useSweepStore.getState().userPhysicalId;
-          this.setStyle({ weight: isUser ? COLORS.userBlockWeight : COLORS.defaultWeight });
-        });
+          polyline.setStyle({ weight: isUser ? COLORS.userBlockWeight : COLORS.defaultWeight });
+        };
+
+        tapTarget.on('click', handleClick);
+        tapTarget.on('mouseover', handleOver);
+        tapTarget.on('mouseout', handleOut);
+        polyline.on('click', handleClick);
+        polyline.on('mouseover', handleOver);
+        polyline.on('mouseout', handleOut);
+
+        tapTarget.addTo(layerGroupRef.current);
         polyline.addTo(layerGroupRef.current);
         polylines.push(polyline);
       }
