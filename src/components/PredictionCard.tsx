@@ -470,9 +470,9 @@ export default function PredictionCard() {
                   <InfoTip detail={`Based on NYC sweeper GPS data (Jun 2025–Jan 2026). Shows what % of scheduled sweep days the sweeper actually showed up on this block.`} />
                 </Text>
               </HStack>
-              {sweepReliability.totalTickets > 0 && displaySkipRate > 30 && (
-                <Text fontSize="xs" color="red.600" mb={1}>
-                  {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block last year
+              {sweepReliability.totalTickets > 0 && (
+                <Text fontSize="xs" color={displaySkipRate > 30 ? "red.600" : "gray.500"} mb={1}>
+                  {sweepReliability.totalTickets.toLocaleString()} tickets issued on this block (Jun 2025–Jan 2026)
                 </Text>
               )}
               {sweepReliability.dowSkipRates && (() => {
