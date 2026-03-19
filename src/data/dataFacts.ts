@@ -24,19 +24,19 @@ export interface PrecinctRow {
 
 export const HEADLINE_STATS: HeadlineStat[] = [
   {
-    value: '79,618',
+    value: '49,523',
     label: 'Tickets on unswept blocks',
     detail: 'Issued on scheduled sweep days where GPS confirmed no sweeper visited that side of the street',
     color: 'red.500',
   },
   {
-    value: '~$5.2M',
+    value: '~$3.2M',
     label: 'Fines on unswept blocks',
     detail: 'At $65/ticket \u2014 revenue from blocks the sweeper was scheduled but never showed',
     color: 'orange.400',
   },
   {
-    value: '827,289',
+    value: '516,796',
     label: 'Tickets with confirmed sweeps',
     detail: 'Sweeper GPS proves the truck was there \u2014 the system works most of the time',
     color: 'green.500',
@@ -196,10 +196,10 @@ export const PRECINCT_DATA: PrecinctRow[] = [
 export const META = {
   dataRange: 'June 2025 \u2013 March 2026',
   totalSegments: 27627,
-  confirmedSweepTickets: 827289,
+  confirmedSweepTickets: 516796,
   source: 'NYC Open Data (DSNY Mechanical Broom GPS dataset c23c-uwsm, DOF Parking Violations dataset pvqr-7yc4, CSCL Centerline inkn-q76z)',
   methodology:
-    'We cross-referenced 1.06M parking tickets against DSNY\u2019s own GPS records across 27,627 street segments. A ticket is classified as "no sweep" only if it falls on a day-of-week where GPS has historically confirmed the sweeper visits that specific side of the street, but the sweeper didn\u2019t show up that particular date. Address matching uses a single unified pipeline with Queens-aware hyphenated house numbers, geocoded letter-prefix tickets, and a 20-house-number proximity cap. Day-of-week analysis uses 319 days of Mon\u2013Sat data.',
+    'We cross-referenced 566K parking tickets against DSNY\u2019s own GPS records across 27,627 street segments. A ticket is classified as "no sweep" only if it falls on a day-of-week where GPS has historically confirmed the sweeper visits that specific side of the street, but the sweeper didn\u2019t show up that particular date. Address matching uses a single unified pipeline with Queens-aware hyphenated house numbers, geocoded letter-prefix tickets, and a 20-house-number proximity cap. Day-of-week analysis uses 319 days of Mon\u2013Sat data.',
   dataCleaning:
     'Each CSCL segment represents one side of one block. ASP signs from the NYC DOT database can include rules for both curbs, so we use GPS data to determine which days the sweeper actually services each side. Per-block skip rates use only days-of-week where GPS has detected the sweeper at least once. Tickets on non-GPS-active days are excluded from no-sweep counts since they likely reflect the opposite curb\u2019s schedule. Some CSCL segments overlap geographically (e.g. service roads on wide boulevards), which can cause GPS to register on different physical IDs over time \u2014 segments with zero confirmed sweep-day tickets are excluded from worst-block rankings.',
 };
