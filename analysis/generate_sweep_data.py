@@ -178,12 +178,9 @@ def load_reliability_with_dow():
         data[pid] = [skip_rate, scheduled_total, 0, dow_rates if has_pattern else None]
         sweep_only += 1
 
-    # Strip DOW from reliable segments to reduce size
-    stripped = 0
-    for entry in data.values():
-        if entry[0] <= 10 and entry[3] is not None:
-            entry[3] = None
-            stripped += 1
+    # Keep DOW rates for ALL segments so the app can show sweep schedule
+    # Previously stripped DOW from reliable segments (<=10% skip) to save ~400KB,
+    # but this caused "No ASP scheduled" to show on blocks that are actually swept
 
     # Compute per-DOW totals (how many Mondays, Tuesdays, etc. in the GPS date range)
     dow_totals = [0] * 6
@@ -191,7 +188,6 @@ def load_reliability_with_dow():
         dow_totals[d.weekday()] += 1
 
     print(f"  Sweep-only segments added: {sweep_only}")
-    print(f"  Stripped DOW from {stripped} reliable segments")
     print(f"  DOW totals: {dow_totals}")
     return data, dow_totals
 
