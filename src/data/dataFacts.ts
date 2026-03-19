@@ -49,10 +49,10 @@ export const HEADLINE_STATS: HeadlineStat[] = [
 
 export const CASE_STUDIES: CaseStudy[] = [
   {
-    title: 'Rivington St, Lower East Side \u2014 93% Skip Rate, 86 Tickets',
+    title: 'Rivington St (164\u2013178), Lower East Side \u2014 93% Skip Rate, 86 Tickets',
     borough: 'Manhattan',
     description:
-      'This Rivington St block is scheduled for sweeping on Tuesdays, Thursdays, and Saturdays, but the sweeper almost never shows. Only 4 GPS visits in 10 months across 57 ASP-active days. All 86 tickets were issued on days the sweeper never came.',
+      'This Rivington St block between 164 and 178 is scheduled for sweeping on Tuesdays, Thursdays, and Saturdays, but the sweeper almost never shows. Only 4 GPS visits in 10 months across 57 ASP-active days. All 86 tickets were issued on days the sweeper never came.',
     stats: [
       { label: 'Skip rate', value: '93.0%', color: 'red.500' },
       { label: 'Tickets issued', value: '86', color: 'red.500' },
@@ -61,22 +61,22 @@ export const CASE_STUDIES: CaseStudy[] = [
     highlight: 'Tue=96%, Thu=98%, Sat=98%. The sweeper comes roughly once every 2\u20133 months per day. 86 tickets at $65 = $5,590 in fines.',
   },
   {
-    title: 'Queens Blvd, Rego Park \u2014 92% Skip Rate, Phantom Route',
+    title: 'Queens Blvd (116-001\u2013117-099), Rego Park \u2014 97% Skip Rate',
     borough: 'Queens',
     description:
-      'This Queens Blvd segment has 4 scheduled sweep days but GPS shows the sweeper almost never arrives. Only 5 GPS visits recorded across 62 ASP-active days. 97 tickets issued, 88 on days with zero sweeper activity.',
+      'This Queens Blvd segment near 116th St has 6 scheduled sweep days but GPS shows the sweeper almost never arrives. Skipped on virtually every scheduled day across the entire analysis period.',
     stats: [
-      { label: 'Skip rate', value: '91.9%', color: 'red.500' },
-      { label: 'Tickets issued', value: '97', color: 'red.500' },
-      { label: 'GPS visits recorded', value: '5', color: 'blue.500' },
+      { label: 'Skip rate', value: '96.9%', color: 'red.500' },
+      { label: 'Tickets issued', value: '0', color: 'blue.500' },
+      { label: 'GPS visits recorded', value: '~2', color: 'blue.500' },
     ],
-    highlight: 'Mon=96%, Tue=98%, Wed=98%, Sat=98%. All four scheduled days skipped 96\u201398% of the time.',
+    highlight: 'Mon=96%, Tue=96%, Wed=96%, Thu=96%, Fri=98%, Sat=98%. Every day of the week skipped 96\u201398% of the time. No tickets issued despite being an active ASP zone.',
   },
   {
-    title: 'Myrtle Ave, Brooklyn \u2014 86% Skip Rate, 185 Tickets',
+    title: 'Myrtle Ave (488\u2013524), Brooklyn \u2014 86% Skip Rate, 185 Tickets',
     borough: 'Brooklyn',
     description:
-      'A Myrtle Ave block with 6 scheduled sweep days, all nearly phantom. The sweeper came only 10 times across 73 ASP-active days. Despite the near-total absence of sweeping, 185 tickets were issued \u2014 every single one on a day the sweeper never showed.',
+      'This Myrtle Ave block between 488 and 524 has 6 scheduled sweep days, all nearly phantom. The sweeper came only 10 times across 73 ASP-active days. Despite the near-total absence of sweeping, 185 tickets were issued \u2014 every single one on a day the sweeper never showed.',
     stats: [
       { label: 'Skip rate', value: '86.3%', color: 'red.500' },
       { label: 'Tickets issued', value: '185', color: 'red.500' },
@@ -85,28 +85,28 @@ export const CASE_STUDIES: CaseStudy[] = [
     highlight: 'Mon=98%, Tue=96%, Wed=96%, Thu=98%, Fri=96%, Sat=96%. All 6 sweep days skipped 96\u201398% of the time. 185 tickets at $65 = $12,025.',
   },
   {
-    title: 'Ocean Pkwy, Brooklyn \u2014 75% Skip Rate, 170 Tickets',
+    title: 'Ocean Pkwy (2001\u20132099), Brooklyn \u2014 90% Skip Rate, 48 Tickets',
     borough: 'Brooklyn',
     description:
-      'An Ocean Parkway service road block scheduled for Monday and Wednesday sweeps. The sweeper skips Monday 93% of the time and Wednesday 81%. All 170 tickets were issued on days the sweeper never came. 14 GPS visits over 55 ASP-active days.',
+      'This Ocean Parkway block between 2001 and 2099 is scheduled for Friday sweeps but the sweeper skips 96% of the time. All 48 tickets were issued on days the sweeper never came.',
     stats: [
-      { label: 'Skip rate', value: '74.5%', color: 'red.500' },
-      { label: 'Tickets issued', value: '170', color: 'red.500' },
-      { label: 'GPS visits recorded', value: '14', color: 'blue.500' },
+      { label: 'Skip rate', value: '89.5%', color: 'red.500' },
+      { label: 'Tickets issued', value: '48', color: 'red.500' },
+      { label: 'GPS visits recorded', value: '2', color: 'blue.500' },
     ],
-    highlight: 'Mon=93%, Wed=81%. Residents on this stretch of Ocean Parkway move their cars for a sweeper that skips 3 out of 4 times.',
+    highlight: 'Fri=96%. The sweeper came only twice in 10 months on this block. 48 tickets at $65 = $3,120 in fines.',
   },
   {
-    title: 'Dreiser Loop, Bronx \u2014 76% Skip Rate, Co-op City',
+    title: 'Dreiser Loop (141\u2013143), Bronx \u2014 76% Skip Rate, Co-op City',
     borough: 'Bronx',
     description:
-      'A Co-op City block where the sweeper is scheduled but skips 76% of the time. Only 5 GPS visits over 21 ASP-active days. 28 tickets issued, all on days the sweeper never showed up.',
+      'This Dreiser Loop block at 141\u2013143 in Co-op City is scheduled for Thursday sweeps but the sweeper skips 91% of the time. Only 5 GPS visits over 21 ASP-active days. 28 tickets issued, all on days the sweeper never showed up.',
     stats: [
       { label: 'Skip rate', value: '76.2%', color: 'red.500' },
       { label: 'Tickets issued', value: '28', color: 'red.500' },
       { label: 'GPS visits recorded', value: '5', color: 'blue.500' },
     ],
-    highlight: 'The sweeper comes roughly once every 2 months. Yet tickets are written consistently. 28 tickets at $65 = $1,820 in fines for a block that barely gets swept.',
+    highlight: 'Thu=91%. The sweeper comes roughly once every 2 months on Thursdays. Yet tickets are written consistently. 28 tickets at $65 = $1,820 in fines.',
   },
 ];
 
