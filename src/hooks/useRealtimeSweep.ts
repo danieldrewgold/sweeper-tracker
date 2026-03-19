@@ -33,9 +33,20 @@ export function useRealtimeSweep() {
     }
 
     debounceRef.current = setTimeout(() => {
-      scanVisibleSegments(segments).catch((err) =>
-        console.error('Real-time sweep scan failed:', err)
-      );
+      // Only scan segments currently visible on screen — prioritize what the user sees
+      const bounds = map.getBounds();
+      const visible = new Map<string, CsclSegment>();
+      for (const [id, seg] of segments) {
+        const center = getSegmentCenter(seg);
+        if (bounds.contains([center[0], center[1]])) {
+          visible.set(id, seg);
+        }
+      }
+      if (visible.size > 0) {
+        scanVisibleSegments(visible).catch((err) =>
+          console.error('Real-time sweep scan failed:', err)
+        );
+      }
     }, SCAN_DEBOUNCE_MS);
 
     return () => {
