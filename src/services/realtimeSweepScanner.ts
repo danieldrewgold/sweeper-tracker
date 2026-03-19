@@ -15,7 +15,8 @@ const confirmedSwept = new Set<string>();
 const checkedNotSwept = new Set<string>();
 let queriedDate = '';
 
-/** Track if a scan is currently running (to avoid duplicate parallel scans) */
+/** Pending segments that arrived while a scan was running */
+let pendingSegments: Map<string, CsclSegment> = new Map();
 let scanning = false;
 
 function getTodayStr(): string {
@@ -34,13 +35,17 @@ export function resetScannerCache() {
  * Queries the sweepinfo endpoint for each unscanned segment in throttled batches
  * and progressively updates the store.
  *
- * Safe to call repeatedly — skips already-queried segments via the daily cache.
- * If a scan is already running, this returns immediately (the running scan
- * will pick up any new segments on the next trigger).
+ * If a scan is already running, queues the new segments and runs them
+ * immediately after the current scan finishes.
  */
 export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
-  // Avoid overlapping scans
-  if (scanning) return;
+  // If already scanning, queue these segments for when the current scan finishes
+  if (scanning) {
+    for (const [id, seg] of segments) {
+      pendingSegments.set(id, seg);
+    }
+    return;
+  }
 
   const today = getTodayStr();
 
@@ -118,5 +123,12 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
     }
   } finally {
     scanning = false;
+
+    // If new segments arrived while scanning, process them immediately
+    if (pendingSegments.size > 0) {
+      const queued = pendingSegments;
+      pendingSegments = new Map();
+      scanVisibleSegments(queued).catch(console.error);
+    }
   }
 }
