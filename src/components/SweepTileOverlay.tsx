@@ -49,7 +49,7 @@ export default function SweepTileOverlay() {
       tileLayerRef.current = L.tileLayer(url, {
         minZoom: 13,
         maxZoom: 18,
-        opacity: 0.5,
+        opacity: 0.7,
         errorTileUrl: '', // silently handle missing tiles
       });
       tileLayerRef.current.addTo(map);
