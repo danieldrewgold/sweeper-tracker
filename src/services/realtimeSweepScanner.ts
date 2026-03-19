@@ -92,12 +92,11 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
       const batchResults = new Map<string, Date | null>();
 
       const promises = batch.map(async ({ id, lat, lng }) => {
-        if (abort.signal.aborted) return;
         if (confirmedSwept.has(id) || checkedNotSwept.has(id)) return;
 
         try {
           const info = await fetchSweepInfo(lat, lng);
-          if (abort.signal.aborted) return;
+          // Don't check abort here — always keep results from completed requests
 
           if (info && info.Times && info.Times.length > 0) {
             const visitedTimes = info.Times
