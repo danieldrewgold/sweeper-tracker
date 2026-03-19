@@ -48,8 +48,7 @@ export default function SegmentLayer() {
       if (polylineMapRef.current.has(id)) continue;
 
       // Determine initial color from cached real-time data (avoids gray flash)
-      const initKnownPids = getAllPidsSync();
-      let initColor: string = (initKnownPids && !initKnownPids.has(id)) ? COLORS.noAsp : COLORS.notYet;
+      let initColor: string = COLORS.notYet;
       let initOpacity = 0.7;
       if (rtStatus.has(id)) {
         const visitTime = rtStatus.get(id);
@@ -105,8 +104,8 @@ export default function SegmentLayer() {
     const knownPids = getAllPidsSync();
 
     for (const [id, polylines] of polylineMapRef.current) {
-      // Default: gray (not yet swept) for ASP blocks, lavender for no-ASP blocks
-      let color: string = (knownPids && !knownPids.has(id)) ? COLORS.noAsp : COLORS.notYet;
+      // Default: gray. Only the user's selected block gets lavender if it has no ASP data.
+      let color: string = COLORS.notYet;
       let weight: number = COLORS.defaultWeight;
       let opacity = 0.7;
 
@@ -151,7 +150,8 @@ export default function SegmentLayer() {
         // Use single-block sweepinfo result OR batch scan result
         const batchSwept = realtimeSweepStatus.get(id);
         const isSwept = userSweptToday || (batchSwept !== null && batchSwept !== undefined);
-        color = isSwept ? COLORS.swept : COLORS.userBlock;
+        const hasAspData = !knownPids || knownPids.has(id);
+        color = isSwept ? COLORS.swept : hasAspData ? COLORS.userBlock : COLORS.noAsp;
         weight = COLORS.userBlockWeight;
         opacity = 1;
       }
