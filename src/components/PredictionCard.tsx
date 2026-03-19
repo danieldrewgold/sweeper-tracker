@@ -328,7 +328,11 @@ export default function PredictionCard() {
             {sweepDayStatus === 'no_asp' && (
               <HStack spacing={2}>
                 <Icon as={InfoOutlineIcon} color="gray.400" boxSize={4} />
-                <Text fontSize="sm" color="gray.600">No ASP scheduled today</Text>
+                <Text fontSize="sm" color="gray.600">
+                  {effectiveDays.size === 0
+                    ? 'No street cleaning schedule found for this block'
+                    : 'No ASP scheduled today'}
+                </Text>
               </HStack>
             )}
             {sweepDayStatus === 'asp_but_rare' && (
@@ -570,7 +574,9 @@ export default function PredictionCard() {
           <>
             <Divider />
             <Text fontSize="xs" color="gray.400">
-              No historical sweep data for this block. ETA estimates aren't available for all streets.
+              {effectiveDays.size === 0
+                ? 'This block may be metered, a commercial zone, or otherwise not subject to standard street cleaning rules.'
+                : 'No historical sweep data for this block. ETA estimates aren\'t available for all streets.'}
             </Text>
           </>
         )}
