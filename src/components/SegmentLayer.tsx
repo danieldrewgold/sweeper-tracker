@@ -47,10 +47,8 @@ export default function SegmentLayer() {
     for (const [id, segment] of segments) {
       if (polylineMapRef.current.has(id)) continue;
 
-      // Determine initial color — low opacity until sweepinfo scan completes
-      // so the tile overlay shows through immediately
       let initColor: string = COLORS.notYet;
-      let initOpacity = 0.15;
+      let initOpacity = 0.5;
       if (rtStatus.has(id)) {
         const visitTime = rtStatus.get(id);
         if (visitTime) {
@@ -108,10 +106,9 @@ export default function SegmentLayer() {
     const rtKeys = realtimeSweepStatus;
 
     for (const [id, polylines] of polylineMapRef.current) {
-      // Default: very low opacity so tile overlay shows through until scan completes
       let color: string = COLORS.notYet;
       let weight: number = COLORS.defaultWeight;
-      let opacity = rtKeys.has(id) ? 0.7 : 0.15;
+      let opacity = rtKeys.has(id) ? 0.7 : 0.5;
 
       // Priority 1: SODA data (delayed but reliable for historical)
       const records = sweepRecords.get(id);

@@ -71,6 +71,8 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
     toQuery.push({ id, lat, lng });
   }
 
+  console.log(`[scan] ${toQuery.length} segments to query (${segments.size} visible, ${confirmedSwept.size} cached swept, ${checkedNotSwept.size} cached not-swept)`);
+
   if (toQuery.length === 0) {
     currentAbort = null;
     // Still check pending
@@ -126,6 +128,8 @@ export async function scanVisibleSegments(segments: Map<string, CsclSegment>) {
 
       if (batchResults.size > 0) {
         useSweepStore.getState().mergeRealtimeSweepStatus(batchResults);
+        const swept = [...batchResults.values()].filter(v => v !== null).length;
+        console.log(`[scan] batch done: ${batchResults.size} results (${swept} swept)`);
       }
     }
   } finally {
