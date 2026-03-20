@@ -108,7 +108,7 @@ export function useUserBlock() {
           fetchAsp(),
           fetchSweepInfo(latLng[0], latLng[1]).catch(() => null),
           getSweepReliability(physicalId).catch(() => null),
-          boroName && streetName ? getInspectorTiming(streetName, boroName).catch(() => null) : null,
+          getInspectorTiming(physicalId, streetName, boroName).catch(() => null),
           boroName && streetName ? getPostSweepReturn(streetName, boroName).catch(() => null) : null,
           getDoubleSweepInfo(physicalId).catch(() => null),
         ]);

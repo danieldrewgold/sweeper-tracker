@@ -57,12 +57,14 @@ export async function getSweepReliability(physicalId: string): Promise<SweepReli
 }
 
 export async function getInspectorTiming(
-  streetName: string,
-  borough: string,
+  physicalId: string,
+  streetName?: string,
+  borough?: string,
 ): Promise<InspectorTiming | null> {
   const data = await loadData();
-  const key = `${normalizeStreet(streetName)}|${borough}`;
-  const entry = data.i[key];
+  // Try per-segment first, fall back to street-level
+  const entry = data.i[physicalId]
+    ?? (streetName && borough ? data.i[`${normalizeStreet(streetName)}|${borough}`] : undefined);
   if (!entry) return null;
   return {
     medianMinutes: entry[0],
@@ -74,10 +76,10 @@ export async function getInspectorTiming(
 
 /** Synchronous inspector lookup — returns q75 (minutes since midnight) or null.
  *  Only works after sweepData.json has been loaded (always true once a block is selected). */
-export function getInspectorQ75Sync(streetName: string, borough: string): number | null {
+export function getInspectorQ75Sync(physicalId: string, streetName?: string, borough?: string): number | null {
   if (!sweepData) return null;
-  const key = `${normalizeStreet(streetName)}|${borough}`;
-  const entry = sweepData.i[key];
+  const entry = sweepData.i[physicalId]
+    ?? (streetName && borough ? sweepData.i[`${normalizeStreet(streetName)}|${borough}`] : undefined);
   return entry ? entry[2] : null; // index 2 = q75Minutes
 }
 

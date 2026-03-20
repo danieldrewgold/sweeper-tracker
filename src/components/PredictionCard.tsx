@@ -95,7 +95,7 @@ export default function PredictionCard() {
       // Check if inspector is likely done on this street
       const streetName = seg.full_street_name || seg.stname_label || '';
       const boro = BORO_NAMES[seg.boroughcode] ?? '';
-      const inspQ75 = streetName && boro ? getInspectorQ75Sync(streetName, boro) : null;
+      const inspQ75 = getInspectorQ75Sync(pid, streetName, boro);
 
       if (inspQ75 !== null) {
         // Use per-street inspector data: current time must be past the q75 window
