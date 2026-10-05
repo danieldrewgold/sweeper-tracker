@@ -1,5 +1,5 @@
 import { MapContainer, TileLayer } from 'react-leaflet';
-import { NYC_CENTER, DEFAULT_ZOOM } from '../utils/constants';
+import { NYC_CENTER, DEFAULT_ZOOM, BASEMAP_URL } from '../utils/constants';
 import SegmentLayer from './SegmentLayer';
 import SweepTileOverlay from './SweepTileOverlay';
 import MapEventHandler from './MapEventHandler';
@@ -17,9 +17,8 @@ export default function SweepMap() {
       maxZoom={18}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions/">CARTO</a>'
+        url={BASEMAP_URL}
       />
       <SweepTileOverlay />
       <MapEventHandler />
