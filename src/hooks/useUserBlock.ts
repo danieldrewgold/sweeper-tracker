@@ -9,6 +9,7 @@ import { getSegmentCenter, findCrossStreets } from '../utils/geo';
 import { fetchSegmentById, fetchSegmentsInRadius } from '../api/csclApi';
 import { getSweepReliability, getInspectorTiming, getPostSweepReturn, getDoubleSweepInfo } from '../services/sweepData';
 import { fetchAspSignsByStreetAndCrossStreets } from '../api/aspApi';
+import { trackLookup, type LookupSource } from '../services/analytics';
 import type { NominatimResult } from '../services/geocoder';
 import type { CsclSegment } from '../types/cscl';
 
@@ -53,6 +54,16 @@ function buildAddress(segment: CsclSegment): string {
   return boroName ? `${prefix}${streetName}, ${boroName}` : `${prefix}${streetName}`;
 }
 
+interface LookupInfo {
+  source: LookupSource;
+  houseNumber?: string | null;
+}
+
+/** Leading house number from a typed query, e.g. "251 Sterling St" or "139-49 Queens Blvd". */
+function houseNumberFromQuery(query?: string): string | null {
+  return query?.match(/^\s*(\d+(?:-\d+)?)\b/)?.[1] ?? null;
+}
+
 export function useUserBlock() {
   const setUserBlock = useSweepStore((s) => s.setUserBlock);
   const setHistoricalPattern = useSweepStore((s) => s.setHistoricalPattern);
@@ -68,13 +79,15 @@ export function useUserBlock() {
 
   /** Shared: load historical pattern + ASP schedule + real-time sweep info for a segment */
   const loadBlockData = useCallback(
-    async (segment: CsclSegment, physicalId: string, latLng: [number, number], address: string) => {
+    async (segment: CsclSegment, physicalId: string, latLng: [number, number], address: string, lookup: LookupInfo) => {
       setLoading(true);
       setError(null);
       setSweepVisitTime(null);
 
       try {
         setUserBlock(address, physicalId, latLng);
+        // Block-level label only; the address the user typed is never logged.
+        trackLookup({ segmentId: physicalId, label: buildAddress(segment), ...lookup });
 
         const boroName = BORO_MAP[segment.boroughcode] ?? '';
         const streetName = segment.full_street_name || '';
@@ -142,7 +155,7 @@ export function useUserBlock() {
 
   /** Select block from address search (geocoded result) */
   const selectFromGeocode = useCallback(
-    async (result: NominatimResult, originalQuery?: string) => {
+    async (result: NominatimResult, originalQuery?: string, source: LookupSource = 'search') => {
       setLoading(true);
       setError(null);
 
@@ -155,7 +168,8 @@ export function useUserBlock() {
         }
 
         addSegments(resolved.nearbySegments);
-        await loadBlockData(resolved.segment, resolved.physicalId, resolved.latLng, resolved.address);
+        const houseNumber = result.address?.house_number ?? houseNumberFromQuery(originalQuery);
+        await loadBlockData(resolved.segment, resolved.physicalId, resolved.latLng, resolved.address, { source, houseNumber });
       } catch (err) {
         console.error('Block selection failed:', err);
         setError('Failed to load block data. Try again.');
@@ -174,7 +188,7 @@ export function useUserBlock() {
 
       const latLng = getSegmentCenter(segment);
       const address = buildAddress(segment);
-      await loadBlockData(segment, physicalId, latLng, address);
+      await loadBlockData(segment, physicalId, latLng, address, { source: 'map' });
     },
     [loadBlockData]
   );
@@ -196,7 +210,7 @@ export function useUserBlock() {
         // Fetch nearby segments so cross-street matching works for ASP lookup
         const nearby = await fetchSegmentsInRadius(latLng[0], latLng[1], 300).catch(() => [segment]);
         addSegments(nearby.length > 0 ? nearby : [segment]);
-        await loadBlockData(segment, physicalId, latLng, address);
+        await loadBlockData(segment, physicalId, latLng, address, { source: 'saved' });
       } catch (err) {
         console.error('Block restore failed:', err);
         setError('Failed to restore block. Try searching again.');

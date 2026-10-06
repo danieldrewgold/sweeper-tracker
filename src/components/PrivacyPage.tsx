@@ -1,0 +1,59 @@
+import { Container, Heading, Text, VStack, UnorderedList, ListItem, Link } from '@chakra-ui/react';
+
+export default function PrivacyPage() {
+  return (
+    <Container maxW="2xl" py={8}>
+      <VStack align="stretch" spacing={4} color="gray.700" fontSize="sm">
+        <Heading size="lg" color="gray.800">
+          Privacy
+        </Heading>
+        <Text>
+          SweepTracker keeps a small amount of anonymous usage data so we can see what's working and
+          which neighborhoods people use it in.
+        </Text>
+
+        <Heading size="sm" color="gray.800" pt={2}>
+          What we log
+        </Heading>
+        <UnorderedList spacing={1} pl={2}>
+          <ListItem>
+            A cookie with a random ID, so we can tell new visitors from returning ones. It isn't tied to
+            your name or any account.
+          </ListItem>
+          <ListItem>Which blocks get looked up. We log the block, never your exact location.</ListItem>
+          <ListItem>The website that sent you here, if any (just the site name, not the page).</ListItem>
+          <ListItem>Whether you're on a phone, tablet, or computer.</ListItem>
+        </UnorderedList>
+
+        <Heading size="sm" color="gray.800" pt={2}>
+          What we don't log
+        </Heading>
+        <Text>
+          Your name, your IP address, the address you type in, or your precise location.
+        </Text>
+
+        <Heading size="sm" color="gray.800" pt={2}>
+          What happens to it
+        </Heading>
+        <Text>
+          We use it only to improve SweepTracker. We never sell or share it. Raw logs are deleted after
+          12 months.
+        </Text>
+        <Text>
+          We also use{' '}
+          <Link href="https://vercel.com/docs/analytics/privacy-policy" isExternal color="orange.500">
+            Vercel Web Analytics
+          </Link>
+          , which counts page views without cookies.
+        </Text>
+
+        <Heading size="sm" color="gray.800" pt={2}>
+          Opting out
+        </Heading>
+        <Text>
+          If your browser sends a Global Privacy Control signal, we don't log anything.
+        </Text>
+      </VStack>
+    </Container>
+  );
+}

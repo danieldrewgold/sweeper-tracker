@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon, CloseIcon } from '@chakra-ui/icons';
 import { geocodeSearch, reverseGeocode, type NominatimResult } from '../services/geocoder';
+import type { LookupSource } from '../services/analytics';
 import { useSweepStore } from '../store';
 
 /** Simple crosshair/GPS icon */
@@ -30,7 +31,7 @@ function LocationIcon() {
 }
 
 interface Props {
-  onSelect: (result: NominatimResult, originalQuery?: string) => void;
+  onSelect: (result: NominatimResult, originalQuery?: string, source?: LookupSource) => void;
 }
 
 const HAS_GEOLOCATION = typeof navigator !== 'undefined' && 'geolocation' in navigator;
@@ -143,7 +144,7 @@ export default function AddressSearch({ onSelect }: Props) {
     timerRef.current = setTimeout(() => doSearch(val), 600);
   };
 
-  const handleSelect = (result: NominatimResult, currentQuery?: string) => {
+  const handleSelect = (result: NominatimResult, currentQuery?: string, source: LookupSource = 'search') => {
     const houseNum = result.address?.house_number ?? '';
     const road = result.address?.road ?? result.display_name.split(',')[0];
     const area = getNeighborhood(result);
@@ -152,7 +153,7 @@ export default function AddressSearch({ onSelect }: Props) {
     setShowResults(false);
     setResults([]);
     setHighlightedIndex(-1);
-    onSelect(result, currentQuery ?? query);
+    onSelect(result, currentQuery ?? query, source);
   };
 
   const handleClear = () => {
@@ -216,7 +217,7 @@ export default function AddressSearch({ onSelect }: Props) {
       const { latitude, longitude } = position.coords;
       const result = await reverseGeocode(latitude, longitude);
       if (result) {
-        handleSelect(result);
+        handleSelect(result, undefined, 'gps');
       }
     } catch {
       // Permission denied or timeout — silently fail

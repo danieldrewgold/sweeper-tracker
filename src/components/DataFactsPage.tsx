@@ -535,6 +535,16 @@ export default function DataFactsPage() {
             Built by Daniel Gold. Data from NYC Open Data.
             All analysis is reproducible from public datasets.
           </Text>
+          <Text
+            as="button"
+            fontSize="xs"
+            color="gray.500"
+            textDecoration="underline"
+            mt={1}
+            onClick={() => navigate('privacy')}
+          >
+            Privacy
+          </Text>
         </Box>
       </VStack>
     </Container>

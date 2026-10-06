@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Private reference material (competitor brief + screenshots), kept out of the public repo
+docs/competitors.md
+docs/competitors/

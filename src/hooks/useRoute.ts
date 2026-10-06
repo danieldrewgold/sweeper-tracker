@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from 'react';
 
-export type Route = 'map' | 'data';
+export type Route = 'map' | 'data' | 'privacy';
+
+const PATHS: Record<Route, string> = { map: '/', data: '/data', privacy: '/privacy' };
 
 function getRoute(): Route {
-  const path = window.location.pathname;
-  if (path === '/data' || path === '/data/') return 'data';
+  const path = window.location.pathname.replace(/\/$/, '');
+  if (path === '/data') return 'data';
+  if (path === '/privacy') return 'privacy';
   return 'map';
 }
 
@@ -22,8 +25,7 @@ function getSnapshot(): Route {
 }
 
 function navigateTo(r: Route) {
-  const path = r === 'data' ? '/data' : '/';
-  window.history.pushState({}, '', path);
+  window.history.pushState({}, '', PATHS[r]);
   currentRoute = r;
   listeners.forEach((cb) => cb());
 }

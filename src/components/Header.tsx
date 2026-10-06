@@ -78,6 +78,16 @@ export default function Header() {
           >
             Buy me a coffee
           </Link>
+          <Box
+            as="button"
+            color={route === 'privacy' ? 'orange.300' : 'gray.400'}
+            fontSize="xs"
+            display={{ base: 'none', md: 'block' }}
+            _hover={{ color: 'orange.300' }}
+            onClick={() => navigate('privacy')}
+          >
+            Privacy
+          </Box>
           <Text fontSize="xs" opacity={0.7} display={{ base: 'none', md: 'block' }}>
             NYC Street Sweeper ETA
           </Text>

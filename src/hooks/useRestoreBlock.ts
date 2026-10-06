@@ -87,7 +87,7 @@ export function useRestoreBlock() {
             geocodeSearch(urlAddress).then((results) => {
               if (results.length > 0) {
                 userActivelySelected.current = true;
-                selectGeoRef.current(results[0]);
+                selectGeoRef.current(results[0], undefined, 'shared_link');
               }
             }).catch(() => {});
             return;
@@ -97,7 +97,7 @@ export function useRestoreBlock() {
           geocodeSearch(urlAddress).then((results) => {
             if (results.length > 0) {
               userActivelySelected.current = true;
-              selectGeoRef.current(results[0]);
+              selectGeoRef.current(results[0], undefined, 'shared_link');
             }
           }).catch(() => {});
           return;
@@ -106,7 +106,7 @@ export function useRestoreBlock() {
         geocodeSearch(urlAddress).then((results) => {
           if (results.length > 0) {
             userActivelySelected.current = true;
-            selectGeoRef.current(results[0]);
+            selectGeoRef.current(results[0], undefined, 'shared_link');
           }
         }).catch(() => {});
         return;
@@ -118,7 +118,7 @@ export function useRestoreBlock() {
     tryAutoGeolocation()
       .then((geoResult) => {
         if (geoResult) {
-          selectGeoRef.current(geoResult);
+          selectGeoRef.current(geoResult, undefined, 'gps');
           return;
         }
         // Geolocation unavailable/denied — restore from localStorage
@@ -140,7 +140,7 @@ export function useRestoreBlock() {
           if (address) {
             geocodeSearch(address).then((results) => {
               if (results.length > 0) {
-                selectGeoRef.current(results[0]);
+                selectGeoRef.current(results[0], undefined, 'saved');
               }
             }).catch(() => {});
           }
