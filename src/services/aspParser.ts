@@ -56,24 +56,36 @@ export function parseSignDescription(sign: AspSign): ParsedSchedule[] {
 }
 
 export function parseAllSigns(signs: AspSign[]): ParsedSchedule[] {
-  const parsed: ParsedSchedule[] = [];
-  const seen = new Set<string>();
+  // Group every window by day + side, remembering when its order was completed
+  const byDaySide = new Map<string, { schedule: ParsedSchedule; completed: string }[]>();
 
   for (const sign of signs) {
-    const schedules = parseSignDescription(sign);
-
-    for (const schedule of schedules) {
-      // Deduplicate by day + side (different blocks on the same street
-      // may have slightly different time windows, keep the first seen)
+    const completed = sign.order_completed_on_date ?? '';
+    for (const schedule of parseSignDescription(sign)) {
       const key = `${schedule.day}-${schedule.side}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      const group = byDaySide.get(key) ?? [];
+      group.push({ schedule, completed });
+      byDaySide.set(key, group);
+    }
+  }
 
+  // When orders disagree, the most recently completed one wins (older orders can stay
+  // marked Current after new signs go up). Windows from the newest date are all kept:
+  // one order can post a daily window plus a weekly one along different stretches of curb.
+  const parsed: ParsedSchedule[] = [];
+  for (const group of byDaySide.values()) {
+    const newest = group.reduce((max, g) => (g.completed > max ? g.completed : max), '');
+    const seen = new Set<string>();
+    for (const { schedule, completed } of group) {
+      if (completed !== newest) continue;
+      const window = `${schedule.startMinutes}-${schedule.endMinutes}`;
+      if (seen.has(window)) continue;
+      seen.add(window);
       parsed.push(schedule);
     }
   }
 
-  // Sort by day of week
+  // Sort by day of week, then side, then start time
   const dayOrder: Record<string, number> = {
     MONDAY: 1,
     TUESDAY: 2,
@@ -84,6 +96,10 @@ export function parseAllSigns(signs: AspSign[]): ParsedSchedule[] {
     SUNDAY: 7,
   };
 
-  parsed.sort((a, b) => (dayOrder[a.day] ?? 8) - (dayOrder[b.day] ?? 8));
+  parsed.sort((a, b) =>
+    (dayOrder[a.day] ?? 8) - (dayOrder[b.day] ?? 8)
+    || a.side.localeCompare(b.side)
+    || a.startMinutes - b.startMinutes,
+  );
   return parsed;
 }

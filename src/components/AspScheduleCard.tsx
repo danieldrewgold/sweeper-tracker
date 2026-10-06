@@ -5,17 +5,21 @@ import type { ParsedSchedule } from '../types/asp';
 const SIDE_LABELS: Record<string, string> = { N: 'North Side', S: 'South Side', E: 'East Side', W: 'West Side' };
 
 function SideGroup({ side, schedules, today }: { side: string; schedules: ParsedSchedule[]; today: string }) {
+  // Some blocks have two windows on the same day; show them on one row
+  const byDay = new Map<string, ParsedSchedule[]>();
+  for (const s of schedules) byDay.set(s.day, [...(byDay.get(s.day) ?? []), s]);
+
   return (
     <Box>
       <Text fontSize="2xs" fontWeight="bold" color="gray.500" textTransform="uppercase" letterSpacing="wide" mb={1}>
         {SIDE_LABELS[side] ?? side}
       </Text>
       <VStack align="stretch" spacing={1}>
-        {schedules.map((s, i) => {
-          const isToday = s.day === today;
+        {[...byDay.entries()].map(([day, windows]) => {
+          const isToday = day === today;
           return (
             <HStack
-              key={i}
+              key={day}
               justify="space-between"
               bg={isToday ? 'green.50' : 'transparent'}
               px={2}
@@ -24,10 +28,10 @@ function SideGroup({ side, schedules, today }: { side: string; schedules: Parsed
             >
               <HStack spacing={2}>
                 <Text fontSize="sm" fontWeight={isToday ? 'bold' : 'normal'} minW="90px">
-                  {s.day.charAt(0) + s.day.slice(1).toLowerCase()}
+                  {day.charAt(0) + day.slice(1).toLowerCase()}
                 </Text>
                 <Text fontSize="sm" color="gray.600">
-                  {s.startTime}–{s.endTime}
+                  {windows.map((s) => `${s.startTime}–${s.endTime}`).join(', ')}
                 </Text>
               </HStack>
               {isToday && (

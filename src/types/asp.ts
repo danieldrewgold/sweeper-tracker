@@ -9,6 +9,8 @@ export interface AspSign {
   sign_y_coord: string;
   arrow_direction?: string;
   sign_code: string;
+  order_number?: string;
+  order_completed_on_date?: string; // "2024-06-20T00:00:00.000"
 }
 
 export interface ParsedSchedule {

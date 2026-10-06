@@ -143,7 +143,13 @@ export default function PredictionCard() {
   const todayDowForGps = new Date().getDay() >= 1 ? new Date().getDay() - 1 : -1;
   const gpsConfirmsToday = !sweepReliability?.dowSkipRates || todayDowForGps < 0
     || (sweepReliability.dowSkipRates[todayDowForGps] >= 0);
-  const todaySchedule = gpsConfirmsToday ? aspSchedules.find((s) => s.day === today) : undefined;
+  // A block can have more than one window today; use the one that ends last so we never
+  // call it safe while a later window is still coming
+  const todaySchedule = gpsConfirmsToday
+    ? aspSchedules
+        .filter((s) => s.day === today)
+        .reduce<typeof aspSchedules[number] | undefined>((last, s) => (!last || s.endMinutes > last.endMinutes ? s : last), undefined)
+    : undefined;
 
   // Real-time ETA from nearby frontier
   const isSweeperNearby = !wasSwept && eta && eta.estimatedMinutes !== null;
