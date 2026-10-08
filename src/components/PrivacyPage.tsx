@@ -36,8 +36,9 @@ export default function PrivacyPage() {
           What happens to it
         </Heading>
         <Text>
-          We use it only to improve SweepTracker. We never sell or share it. Raw logs are deleted after
-          12 months.
+          We use it to improve SweepTracker. We never sell your individual data. We may share or publish
+          aggregate statistics, like which neighborhoods check the map most, that can't be traced back
+          to anyone. Raw logs are deleted after 12 months.
         </Text>
         <Text>
           We also use{' '}
