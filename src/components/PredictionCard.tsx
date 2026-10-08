@@ -6,6 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { formatTime, formatMinutes, dateToMinutes } from '../utils/time';
 import { getSegmentCenter, haversine } from '../utils/geo';
 import { getInspectorQ75Sync, getPostSweepReturnSync, getDowTotalsSync } from '../services/sweepData';
+import { trackEvent } from '../services/analytics';
 
 /** Tappable info icon that toggles an explanation underneath */
 function InfoTip({ detail }: { detail: string }) {
@@ -245,14 +246,19 @@ export default function PredictionCard() {
           variant="ghost"
           color={alertsEnabled ? 'green.600' : 'gray.400'}
           onClick={async () => {
+            const hasNotifications = 'Notification' in window;
             if (!alertsEnabled) {
-              if ('Notification' in window && Notification.permission === 'default') {
+              if (hasNotifications && Notification.permission === 'default') {
                 await Notification.requestPermission();
               }
               setAlertsEnabled(true);
             } else {
               setAlertsEnabled(false);
             }
+            trackEvent({
+              name: 'alert_toggle',
+              props: { on: !alertsEnabled, permission: hasNotifications ? Notification.permission : 'unsupported' },
+            });
           }}
           title={alertsEnabled ? 'Alerts on — tap to disable' : 'Get notified when your block is swept'}
         />
@@ -415,6 +421,7 @@ export default function PredictionCard() {
                 as={Link}
                 href={`https://www.google.com/maps/dir/?api=1&destination=${nearestSwept.center[0]},${nearestSwept.center[1]}&travelmode=driving`}
                 isExternal
+                onClick={() => trackEvent({ name: 'directions_click', props: { app: 'google' } })}
                 size="xs"
                 colorScheme="blue"
                 variant="outline"
@@ -427,6 +434,7 @@ export default function PredictionCard() {
                 as={Link}
                 href={`https://waze.com/ul?ll=${nearestSwept.center[0]},${nearestSwept.center[1]}&navigate=yes`}
                 isExternal
+                onClick={() => trackEvent({ name: 'directions_click', props: { app: 'waze' } })}
                 size="xs"
                 colorScheme="blue"
                 variant="outline"

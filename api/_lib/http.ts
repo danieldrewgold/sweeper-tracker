@@ -28,6 +28,13 @@ export function deviceFromUA(userAgent: string): 'phone' | 'tablet' | 'desktop' 
   return 'desktop';
 }
 
+/** iPadOS reports a Mac UA, so iPads usually land in "other". */
+export function osFromUA(userAgent: string): 'ios' | 'android' | 'other' {
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return 'ios';
+  if (/Android/i.test(userAgent)) return 'android';
+  return 'other';
+}
+
 /** Reject cross-site calls. Requests without an Origin header (same-origin GETs, some browsers) pass. */
 export function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get('origin');

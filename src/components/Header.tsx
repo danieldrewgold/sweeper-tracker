@@ -1,6 +1,7 @@
 import { Box, Heading, Text, HStack, Link, Icon } from '@chakra-ui/react';
 import { useSweepStore } from '../store';
 import { useRoute } from '../hooks/useRoute';
+import { trackEvent } from '../services/analytics';
 
 function BroomIcon(props: React.ComponentProps<typeof Icon>) {
   return (
@@ -66,6 +67,7 @@ export default function Header() {
           <Link
             href="https://buymeacoffee.com/danielgold"
             isExternal
+            onClick={() => trackEvent({ name: 'coffee_click' })}
             color="gray.400"
             border="1px"
             borderColor="gray.600"

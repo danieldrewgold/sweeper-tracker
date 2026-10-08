@@ -54,6 +54,21 @@ const esc = (v: unknown) =>
 const num = (v: unknown) => Number(v ?? 0);
 const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((100 * part) / whole)}%` : 'n/a');
 
+const FEATURE_LABELS: Record<string, string> = {
+  alert_toggle: 'Sweep alerts (bell)',
+  coffee_click: 'Buy me a coffee',
+  directions_click: 'Directions to a swept street',
+  page_view: 'Page opened',
+};
+const FAIL_LABELS: Record<string, string> = {
+  no_results: 'Search found nothing',
+  search_error: 'Search service error',
+  no_segment: 'Address found, no matching block',
+  error: 'Block data failed to load',
+  restore_failed: 'Saved block failed to restore',
+};
+const OS_LABELS: Record<string, string> = { ios: 'iPhone / iOS', android: 'Android', other: 'Other (computers, iPads)' };
+
 function table(headers: string[], rows: unknown[][]): string {
   if (rows.length === 0) return '<p class="muted">No data yet.</p>';
   const head = headers.map((h) => `<th>${esc(h)}</th>`).join('');
@@ -65,6 +80,8 @@ export function renderStats(env: string, d: StatsRows): string {
   const s = d.summary[0] ?? {};
   const rb = d.repeatBlock[0] ?? {};
   const devTotal = d.devices.reduce((n, r) => n + num(r.visitors), 0);
+  const hs = d.homeScreen[0] ?? {};
+  const osTotal = d.os.reduce((n, r) => n + num(r.visitors), 0);
   const generated = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -85,6 +102,7 @@ export function renderStats(env: string, d: StatsRows): string {
   <div class="tile"><b>${num(s.visitors_7d)}</b>Unique visitors, last 7 days<br><span class="muted">prior 7 days: ${num(s.visitors_prev_7d)}</span></div>
   <div class="tile"><b>${num(s.lookups_7d)}</b>Block lookups, last 7 days<br><span class="muted">by ${num(s.lookup_visitors_7d)} visitors</span></div>
   <div class="tile"><b>${num(rb.repeat_visitors)}</b>Looked up the same block on 2+ days (30 days)<br><span class="muted">${pct(num(rb.repeat_visitors), num(rb.lookup_visitors))} of ${num(rb.lookup_visitors)} visitors who looked up a block</span></div>
+  <div class="tile"><b>${num(hs.home_screen_visitors)}</b>Opened from a home-screen icon, last 7 days<br><span class="muted">${pct(num(hs.home_screen_visitors), num(hs.visitors))} of visitors</span></div>
 </div>
 
 <h2>Returning within 14 days</h2>
@@ -92,8 +110,19 @@ export function renderStats(env: string, d: StatsRows): string {
 ${table(['Week of', 'New visitors', 'Returned', 'Rate', 'Status'],
   d.returning.map((r) => [r.week_of, num(r.visitors), num(r.returned), pct(num(r.returned), num(r.visitors)), r.complete ? 'complete' : 'partial']))}
 
+<h2>When people check their block, last 30 days</h2>
+<p class="muted">Time from the lookup to the block's next posted cleaning window (either side of the street). "Already swept" means the sweeper had passed that day.</p>
+${table(['When', 'Lookups', 'Visitors', 'Already swept'],
+  d.checkTiming.map((r) => [String(r.bucket).replace(/^\d\. /, ''), num(r.lookups), num(r.visitors), num(r.already_swept)]))}
+
+<h2>Features used, last 7 days</h2>
+${table(['Feature', 'Detail', 'Visitors', 'Times'], d.features.map((r) => [FEATURE_LABELS[String(r.name)] ?? r.name, r.detail, num(r.visitors), num(r.events)]))}
+
 <h2>Phone vs desktop, last 7 days</h2>
 ${table(['Device', 'Visitors', 'Share'], d.devices.map((r) => [r.device, num(r.visitors), pct(num(r.visitors), devTotal)]))}
+
+<h2>iPhone vs Android, last 7 days</h2>
+${table(['System', 'Visitors', 'Share'], d.os.map((r) => [OS_LABELS[String(r.os)] ?? r.os, num(r.visitors), pct(num(r.visitors), osTotal)]))}
 
 <h2>Top 25 blocks, last 7 days</h2>
 ${table(['Block', 'Segment', 'Visitors', 'Lookups'], d.topBlocks.map((r) => [r.label ?? '', r.segment_id, num(r.visitors), num(r.lookups)]))}
@@ -101,8 +130,22 @@ ${table(['Block', 'Segment', 'Visitors', 'Lookups'], d.topBlocks.map((r) => [r.l
 <h2>Top referrers, last 7 days</h2>
 ${table(['Site', 'Visitors'], d.referrers.map((r) => [r.domain, num(r.visitors)]))}
 
+<h2>Campaign links, last 30 days</h2>
+<p class="muted">Visits from links tagged ?s=name (or utm_source), e.g. sweeptracker.nyc/?s=sticker-flatbush.</p>
+${table(['Campaign', 'Visitors'], d.campaigns.map((r) => [r.campaign, num(r.visitors)]))}
+
 <h2>How blocks were looked up, last 7 days</h2>
 ${table(['Source', 'Lookups'], d.sources.map((r) => [r.source, num(r.lookups)]))}
+
+<h2>Time to first lookup, last 7 days</h2>
+<p class="muted">Seconds from page load to the first block shown. "saved", "gps" and "shared_link" happen automatically on load.</p>
+${table(['Source', 'Page loads', 'Median seconds'], d.firstLookup.map((r) => [r.source, num(r.lookups), r.median_seconds]))}
+
+<h2>Failed lookups, last 7 days</h2>
+${table(['Reason', 'Times', 'Visitors'], d.failedLookups.map((r) => [FAIL_LABELS[String(r.reason)] ?? r.reason, num(r.events), num(r.visitors)]))}
+
+<h2>Landing pages, last 7 days</h2>
+${table(['Page', 'Visits'], d.landing.map((r) => [r.page, num(r.visits)]))}
 
 <h2>Daily, last 14 days</h2>
 ${table(['Day', 'Visitors', 'Lookups'], d.daily.map((r) => [r.day, num(r.visitors), num(r.lookups)]))}

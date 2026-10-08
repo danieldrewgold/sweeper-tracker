@@ -6,7 +6,7 @@ import MapView from './components/MapView';
 import DataFactsPage from './components/DataFactsPage';
 import PrivacyPage from './components/PrivacyPage';
 import { useRoute } from './hooks/useRoute';
-import { trackVisit } from './services/analytics';
+import { trackEvent, trackVisit } from './services/analytics';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -16,6 +16,10 @@ function AppContent() {
   useEffect(() => {
     void trackVisit();
   }, []);
+
+  useEffect(() => {
+    if (route !== 'map') trackEvent({ name: 'page_view', props: { page: route } });
+  }, [route]);
 
   if (route === 'map') {
     return (

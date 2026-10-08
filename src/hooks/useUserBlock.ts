@@ -9,7 +9,8 @@ import { getSegmentCenter, findCrossStreets } from '../utils/geo';
 import { fetchSegmentById, fetchSegmentsInRadius } from '../api/csclApi';
 import { getSweepReliability, getInspectorTiming, getPostSweepReturn, getDoubleSweepInfo } from '../services/sweepData';
 import { fetchAspSignsByStreetAndCrossStreets } from '../api/aspApi';
-import { trackLookup, type LookupSource } from '../services/analytics';
+import { trackEvent, trackLookup, type LookupSource } from '../services/analytics';
+import { windowContext, type WindowContext } from '../utils/windowContext';
 import type { NominatimResult } from '../services/geocoder';
 import type { CsclSegment } from '../types/cscl';
 
@@ -83,11 +84,11 @@ export function useUserBlock() {
       setLoading(true);
       setError(null);
       setSweepVisitTime(null);
+      // Analytics context for this lookup, filled in once the block data arrives.
+      let context: Partial<WindowContext> & { sweptToday?: boolean } = {};
 
       try {
         setUserBlock(address, physicalId, latLng);
-        // Block-level label only; the address the user typed is never logged.
-        trackLookup({ segmentId: physicalId, label: buildAddress(segment), ...lookup });
 
         const boroName = BORO_MAP[segment.boroughcode] ?? '';
         const streetName = segment.full_street_name || '';
@@ -131,23 +132,33 @@ export function useUserBlock() {
         setInspectorTiming(inspTiming);
         setPostSweepReturn(postSweep);
         setDoubleSweepInfo(dblSweep);
-        setAspSchedules(parseAllSigns(aspSigns));
+        const schedules = parseAllSigns(aspSigns);
+        setAspSchedules(schedules);
 
         // Extract latest real-time visit time from mappingapi
+        let latestVisit: Date | null = null;
         if (sweepInfo?.Times?.length) {
           const visitedTimes = sweepInfo.Times
             .filter((t) => t.Type === 'VISITED')
             .map((t) => new Date(t.VisitedTime));
           if (visitedTimes.length > 0) {
-            const latest = visitedTimes.reduce((a, b) => (a > b ? a : b));
-            setSweepVisitTime(latest);
+            latestVisit = visitedTimes.reduce((a, b) => (a > b ? a : b));
+            setSweepVisitTime(latestVisit);
           }
         }
+
+        const sweptToday =
+          latestVisit?.toDateString() === new Date().toDateString() ||
+          !!useSweepStore.getState().realtimeSweepStatus.get(physicalId);
+        context = { ...windowContext(schedules, reliability?.dowSkipRates), sweptToday };
       } catch (err) {
         console.error('Block selection failed:', err);
         setError('Failed to load block data. Try again.');
+        trackEvent({ name: 'lookup_failed', props: { reason: 'error' } });
       } finally {
         setLoading(false);
+        // Block-level label only; the address the user typed is never logged.
+        trackLookup({ segmentId: physicalId, label: buildAddress(segment), ...lookup, ...context });
       }
     },
     [setUserBlock, setHistoricalPattern, setSweepReliability, setInspectorTiming, setPostSweepReturn, setDoubleSweepInfo, setAspSchedules, setSweepVisitTime, setLoading, setError]
@@ -164,6 +175,7 @@ export function useUserBlock() {
         if (!resolved) {
           setError('Could not find a street segment for this address.');
           setLoading(false);
+          trackEvent({ name: 'lookup_failed', props: { reason: 'no_segment' } });
           return;
         }
 
@@ -174,6 +186,7 @@ export function useUserBlock() {
         console.error('Block selection failed:', err);
         setError('Failed to load block data. Try again.');
         setLoading(false);
+        trackEvent({ name: 'lookup_failed', props: { reason: 'error' } });
       }
     },
     [addSegments, loadBlockData, setLoading, setError]
@@ -204,6 +217,7 @@ export function useUserBlock() {
         if (!segment) {
           setError('Could not find the saved block.');
           setLoading(false);
+          trackEvent({ name: 'lookup_failed', props: { reason: 'restore_failed' } });
           return;
         }
 
@@ -215,6 +229,7 @@ export function useUserBlock() {
         console.error('Block restore failed:', err);
         setError('Failed to restore block. Try searching again.');
         setLoading(false);
+        trackEvent({ name: 'lookup_failed', props: { reason: 'restore_failed' } });
       }
     },
     [addSegments, loadBlockData, setLoading, setError]

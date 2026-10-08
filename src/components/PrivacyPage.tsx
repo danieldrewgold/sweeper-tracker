@@ -20,9 +20,22 @@ export default function PrivacyPage() {
             A cookie with a random ID, so we can tell new visitors from returning ones. It isn't tied to
             your name or any account.
           </ListItem>
-          <ListItem>Which blocks get looked up. We log the block, never your exact location.</ListItem>
-          <ListItem>The website that sent you here, if any (just the site name, not the page).</ListItem>
-          <ListItem>Whether you're on a phone, tablet, or computer.</ListItem>
+          <ListItem>
+            Which blocks get looked up, and how far that is from the block's next street cleaning. We
+            log the block, never your exact location.
+          </ListItem>
+          <ListItem>
+            Which features you use, like turning on alerts or opening directions, and searches that
+            come up empty (not what you typed).
+          </ListItem>
+          <ListItem>
+            The website or tagged link that sent you here, if any (just the site name or tag, not the
+            page).
+          </ListItem>
+          <ListItem>
+            Whether you're on a phone, tablet, or computer, whether it's an iPhone or Android, and
+            whether you opened SweepTracker from your home screen.
+          </ListItem>
         </UnorderedList>
 
         <Heading size="sm" color="gray.800" pt={2}>

@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { SearchIcon, CloseIcon } from '@chakra-ui/icons';
 import { geocodeSearch, reverseGeocode, type NominatimResult } from '../services/geocoder';
-import type { LookupSource } from '../services/analytics';
+import { trackEvent, type LookupSource } from '../services/analytics';
 import { useSweepStore } from '../store';
 
 /** Simple crosshair/GPS icon */
@@ -35,6 +35,16 @@ interface Props {
 }
 
 const HAS_GEOLOCATION = typeof navigator !== 'undefined' && 'geolocation' in navigator;
+
+// Search runs as you type, so only report an empty result after a real pause on a longer
+// query, and at most once every 30 seconds. The query text itself is never sent.
+let lastNoResultsReport = 0;
+function reportNoResults() {
+  const now = Date.now();
+  if (now - lastNoResultsReport < 30_000) return;
+  lastNoResultsReport = now;
+  trackEvent({ name: 'lookup_failed', props: { reason: 'no_results' } });
+}
 
 /** Get the best neighborhood name from a Nominatim result.
  *  Prefer neighbourhood/quarter (specific) over suburb (often just "Queens"/"Brooklyn"). */
@@ -127,8 +137,10 @@ export default function AddressSearch({ onSelect }: Props) {
 
         setResults(deduped);
         setShowResults(true);
+        if (deduped.length === 0 && q.trim().length >= 6) reportNoResults();
       } catch (err) {
         console.error('Geocode failed:', err);
+        trackEvent({ name: 'lookup_failed', props: { reason: 'search_error' } });
       } finally {
         setIsSearching(false);
       }

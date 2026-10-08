@@ -31,6 +31,11 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS events_env_ts ON events (env, ts)`,
   `CREATE INDEX IF NOT EXISTS events_visitor_ts ON events (visitor_id, ts)`,
+  // v2: OS family, named feature events, campaign tag, and small validated details
+  `ALTER TABLE events ADD COLUMN IF NOT EXISTS os TEXT`,
+  `ALTER TABLE events ADD COLUMN IF NOT EXISTS name TEXT`,
+  `ALTER TABLE events ADD COLUMN IF NOT EXISTS campaign TEXT`,
+  `ALTER TABLE events ADD COLUMN IF NOT EXISTS props JSONB`,
 ];
 
 /** Create the events table on first use. Idempotent; runs once per cold start. */
