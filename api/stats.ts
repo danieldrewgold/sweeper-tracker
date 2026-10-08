@@ -1,20 +1,52 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { db, ensureSchema } from './_lib/db.js';
+import { getCookie } from './_lib/http.js';
 import { STATS_QUERIES, type StatsKey, type StatsRows } from './_lib/statsQueries.js';
 
-// Password-protected weekly stats (served at /stats via vercel.json). HTTP Basic auth; any username.
+// Password-protected weekly stats (served at /stats via vercel.json).
+// A plain form (works in embedded browsers that never show HTTP auth prompts) sets a signed,
+// HttpOnly session cookie good for 30 days. Changing STATS_PASSWORD signs everyone out.
 
 const ENVS = new Set(['production', 'preview', 'development']);
+const SESSION_COOKIE = 'st_stats';
+const SESSION_SECONDS = 60 * 60 * 24 * 30;
 
-function authorized(request: Request): boolean {
-  const password = process.env.STATS_PASSWORD;
-  const header = request.headers.get('authorization') ?? '';
-  if (!password || !header.startsWith('Basic ')) return false;
-  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-  const given = decoded.slice(decoded.indexOf(':') + 1);
-  const a = createHash('sha256').update(given).digest();
-  const b = createHash('sha256').update(password).digest();
-  return timingSafeEqual(a, b);
+function sameSecret(a: string, b: string): boolean {
+  return timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
+}
+
+function sign(password: string, expires: number): string {
+  return createHmac('sha256', password).update(`stats-session:${expires}`).digest('hex');
+}
+
+function hasSession(request: Request, password: string): boolean {
+  const [exp, sig] = (getCookie(request, SESSION_COOKIE) ?? '').split('.');
+  const expires = Number(exp);
+  if (!expires || !sig || expires * 1000 < Date.now()) return false;
+  return sameSecret(sig, sign(password, expires));
+}
+
+function loginPage(failed: boolean): Response {
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<title>SweepTracker stats</title>
+<style>
+  body{font:15px/1.45 system-ui,sans-serif;margin:0;min-height:100vh;display:grid;place-items:center;background:#f7fafc;color:#1a202c}
+  form{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:24px;width:min(320px,90vw)}
+  h1{font-size:18px;margin:0 0 14px} input,button{width:100%;box-sizing:border-box;font:inherit;padding:10px;border-radius:6px}
+  input{border:1px solid #cbd5e0;margin-bottom:10px} button{border:0;background:#2d3748;color:#fff;cursor:pointer}
+  .err{color:#c53030;font-size:13px;margin:0 0 10px}
+</style></head><body>
+<form method="post">
+  <h1>SweepTracker stats</h1>
+  ${failed ? '<p class="err">Wrong password.</p>' : ''}
+  <input type="password" name="password" placeholder="Password" autocomplete="current-password" autofocus required>
+  <button type="submit">Open stats</button>
+</form></body></html>`;
+  return new Response(html, {
+    status: failed ? 401 : 200,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+  });
 }
 
 const esc = (v: unknown) =>
@@ -80,17 +112,29 @@ ${table(['Day', 'Visitors', 'Lookups'], d.daily.map((r) => [r.day, num(r.visitor
 export default {
   async fetch(request: Request): Promise<Response> {
     const noStore = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
-    if (!process.env.STATS_PASSWORD) {
+    const password = process.env.STATS_PASSWORD;
+    if (!password) {
       return new Response('Stats are not configured (STATS_PASSWORD is not set).', { status: 503, headers: noStore });
     }
-    if (!authorized(request)) {
-      return new Response('Password required.', {
-        status: 401,
-        headers: { ...noStore, 'WWW-Authenticate': 'Basic realm="SweepTracker stats", charset="UTF-8"' },
+    const url = new URL(request.url);
+
+    if (request.method === 'POST') {
+      const form = await request.formData().catch(() => null);
+      const given = form?.get('password');
+      if (typeof given !== 'string' || !sameSecret(given, password)) return loginPage(true);
+      const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
+      return new Response(null, {
+        status: 303,
+        headers: {
+          ...noStore,
+          Location: `/stats${url.search}`,
+          'Set-Cookie': `${SESSION_COOKIE}=${expires}.${sign(password, expires)}; Max-Age=${SESSION_SECONDS}; Path=/stats; HttpOnly; Secure; SameSite=Strict`,
+        },
       });
     }
+    if (!hasSession(request, password)) return loginPage(false);
 
-    const requested = new URL(request.url).searchParams.get('env') ?? 'production';
+    const requested = url.searchParams.get('env') ?? 'production';
     const env = ENVS.has(requested) ? requested : 'production';
 
     await ensureSchema();
