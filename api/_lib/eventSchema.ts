@@ -3,11 +3,13 @@
 type Field =
   | { kind: 'bool' }
   | { kind: 'int'; min: number; max: number }
-  | { kind: 'enum'; values: readonly string[] };
+  | { kind: 'enum'; values: readonly string[] }
+  | { kind: 'text'; pattern: RegExp };
 
 const BOOL: Field = { kind: 'bool' };
 const int = (min: number, max: number): Field => ({ kind: 'int', min, max });
 const oneOf = (...values: string[]): Field => ({ kind: 'enum', values });
+const text = (pattern: RegExp): Field => ({ kind: 'text', pattern });
 
 /** Details accepted on page visits and block lookups. */
 export const BUILTIN_PROPS: Record<'visit' | 'lookup', Record<string, Field>> = {
@@ -21,6 +23,8 @@ export const BUILTIN_PROPS: Record<'visit' | 'lookup', Record<string, Field>> = 
     swept_today: BOOL,
     ms_since_load: int(0, 60 * 60 * 1000),
     first: BOOL, // first lookup of this page load
+    boro: oneOf('1', '2', '3', '4', '5'), // CSCL borough code
+    zip: text(/^\d{5}$/), // ZIP on the side looked up (see zipForSide in src/services/analytics.ts)
   },
 };
 
@@ -43,6 +47,7 @@ export function cleanProps(schema: Record<string, Field>, raw: unknown): Record<
     else if (field.kind === 'int' && typeof value === 'number' && Number.isFinite(value)) {
       out[key] = Math.min(field.max, Math.max(field.min, Math.round(value)));
     } else if (field.kind === 'enum' && typeof value === 'string' && field.values.includes(value)) out[key] = value;
+    else if (field.kind === 'text' && typeof value === 'string' && field.pattern.test(value)) out[key] = value;
   }
   return Object.keys(out).length ? out : null;
 }

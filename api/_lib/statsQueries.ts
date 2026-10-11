@@ -2,6 +2,27 @@
 
 const NY_DAY = `(ts AT TIME ZONE 'America/New_York')::date`;
 
+// Borough of a lookup: the logged CSCL code, else the label's ", Borough" suffix (rows from before codes were logged).
+const BOROUGH = `coalesce(
+  CASE props->>'boro' WHEN '1' THEN 'Manhattan' WHEN '2' THEN 'Bronx' WHEN '3' THEN 'Brooklyn'
+                      WHEN '4' THEN 'Queens' WHEN '5' THEN 'Staten Island' END,
+  substring(block_label from ', (Manhattan|Bronx|Brooklyn|Queens|Staten Island)$'),
+  'Unknown')`;
+
+// Lookups from the last 30 days, plus the visitor/block pairs looked up on 2+ different days.
+const AREA_LOOKUPS = `
+  WITH l AS (
+    SELECT visitor_id, segment_id, ${NY_DAY} AS day, ${BOROUGH} AS borough, props->>'zip' AS zip
+    FROM events
+    WHERE env = $1 AND type = 'lookup' AND ts >= now() - interval '30 days'
+  ), rep AS (
+    SELECT visitor_id, segment_id FROM l GROUP BY 1, 2 HAVING count(DISTINCT day) >= 2
+  )`;
+
+const AREA_COUNTS = `
+  count(DISTINCT l.visitor_id) AS visitors, count(*) AS lookups, count(DISTINCT l.segment_id) AS blocks,
+  count(DISTINCT rep.visitor_id) AS repeat_visitors`;
+
 export const STATS_QUERIES = {
   summary: `
     SELECT
@@ -69,6 +90,19 @@ export const STATS_QUERIES = {
     GROUP BY segment_id
     ORDER BY visitors DESC, lookups DESC
     LIMIT 25`,
+
+  // A visitor who looked up blocks in two areas counts in both; all_visitors is the share denominator.
+  boroughs: `${AREA_LOOKUPS}
+    SELECT borough, ${AREA_COUNTS}, (SELECT count(DISTINCT visitor_id) FROM l) AS all_visitors
+    FROM l LEFT JOIN rep USING (visitor_id, segment_id)
+    GROUP BY borough
+    ORDER BY borough = 'Unknown', visitors DESC, lookups DESC`,
+
+  zips: `${AREA_LOOKUPS}
+    SELECT zip, string_agg(DISTINCT borough, ' / ') AS borough, ${AREA_COUNTS}
+    FROM l LEFT JOIN rep USING (visitor_id, segment_id)
+    GROUP BY zip
+    ORDER BY zip IS NULL, visitors DESC, lookups DESC`,
 
   referrers: `
     SELECT coalesce(referrer_domain, '(direct or unknown)') AS domain,
@@ -174,6 +208,32 @@ export const STATS_QUERIES = {
     GROUP BY 1
     ORDER BY visits DESC`,
 } as const;
+
+/** Every block looked up in the retained data (up to 12 months), for the CSV download. Not run on page loads. */
+export const BLOCKS_EXPORT = `
+  WITH l AS (
+    SELECT visitor_id, segment_id, ts, ${NY_DAY} AS day, block_label, ${BOROUGH} AS borough, props->>'zip' AS zip
+    FROM events
+    WHERE env = $1 AND type = 'lookup'
+  ), rep AS (
+    SELECT visitor_id, segment_id FROM l
+    WHERE ts >= now() - interval '30 days'
+    GROUP BY 1, 2 HAVING count(DISTINCT day) >= 2
+  )
+  SELECT segment_id, max(block_label) AS label, max(borough) AS borough,
+         string_agg(DISTINCT zip, ' / ') AS zip,
+         count(DISTINCT l.visitor_id) FILTER (WHERE ts >= now() - interval '7 days') AS visitors_7d,
+         count(*) FILTER (WHERE ts >= now() - interval '7 days') AS lookups_7d,
+         count(DISTINCT l.visitor_id) FILTER (WHERE ts >= now() - interval '30 days') AS visitors_30d,
+         count(*) FILTER (WHERE ts >= now() - interval '30 days') AS lookups_30d,
+         count(DISTINCT rep.visitor_id) AS repeat_visitors_30d,
+         count(DISTINCT l.visitor_id) AS visitors_12mo,
+         count(*) AS lookups_12mo,
+         to_char(min(day), 'YYYY-MM-DD') AS first_seen,
+         to_char(max(day), 'YYYY-MM-DD') AS last_seen
+  FROM l LEFT JOIN rep USING (visitor_id, segment_id)
+  GROUP BY segment_id
+  ORDER BY visitors_30d DESC, visitors_12mo DESC, lookups_12mo DESC, segment_id`;
 
 export type StatsKey = keyof typeof STATS_QUERIES;
 export type StatsRows = Record<StatsKey, Record<string, unknown>[]>;

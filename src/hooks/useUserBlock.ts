@@ -158,7 +158,7 @@ export function useUserBlock() {
       } finally {
         setLoading(false);
         // Block-level label only; the address the user typed is never logged.
-        trackLookup({ segmentId: physicalId, label: buildAddress(segment), ...lookup, ...context });
+        trackLookup({ segmentId: physicalId, label: buildAddress(segment), block: segment, ...lookup, ...context });
       }
     },
     [setUserBlock, setHistoricalPattern, setSweepReliability, setInspectorTiming, setPostSweepReturn, setDoubleSweepInfo, setAspSchedules, setSweepVisitTime, setLoading, setError]

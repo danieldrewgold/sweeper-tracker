@@ -1,7 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { db, ensureSchema } from './_lib/db.js';
+import { toCsv } from './_lib/csv.js';
 import { getCookie } from './_lib/http.js';
-import { STATS_QUERIES, type StatsKey, type StatsRows } from './_lib/statsQueries.js';
+import { BLOCKS_EXPORT, STATS_QUERIES, type StatsKey, type StatsRows } from './_lib/statsQueries.js';
 
 // Password-protected weekly stats (served at /stats via vercel.json).
 // A plain form (works in embedded browsers that never show HTTP auth prompts) sets a signed,
@@ -76,6 +77,18 @@ function table(headers: string[], rows: unknown[][]): string {
   return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
+const BLOCK_COLUMNS = [
+  'visitors_7d', 'lookups_7d', 'visitors_30d', 'lookups_30d', 'repeat_visitors_30d', 'visitors_12mo', 'lookups_12mo',
+] as const;
+
+/** All-blocks download: one row per block, counts as plain numbers. */
+export function blocksCsv(rows: Record<string, unknown>[]): string {
+  return toCsv(
+    ['segment_id', 'block', 'borough', 'zip', ...BLOCK_COLUMNS, 'first_seen', 'last_seen'],
+    rows.map((r) => [r.segment_id, r.label, r.borough, r.zip, ...BLOCK_COLUMNS.map((c) => num(r[c])), r.first_seen, r.last_seen]),
+  );
+}
+
 export function renderStats(env: string, d: StatsRows): string {
   const s = d.summary[0] ?? {};
   const rb = d.repeatBlock[0] ?? {};
@@ -83,6 +96,7 @@ export function renderStats(env: string, d: StatsRows): string {
   const hs = d.homeScreen[0] ?? {};
   const osTotal = d.os.reduce((n, r) => n + num(r.visitors), 0);
   const generated = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const csvLink = `<a href="/stats?env=${esc(env)}&amp;export=blocks">Download all blocks (CSV)</a>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
@@ -124,7 +138,18 @@ ${table(['Device', 'Visitors', 'Share'], d.devices.map((r) => [r.device, num(r.v
 <h2>iPhone vs Android, last 7 days</h2>
 ${table(['System', 'Visitors', 'Share'], d.os.map((r) => [OS_LABELS[String(r.os)] ?? r.os, num(r.visitors), pct(num(r.visitors), osTotal)]))}
 
+<h2>Boroughs, last 30 days</h2>
+<p class="muted">Visitors who looked up a block there; someone who checked blocks in two boroughs counts in both. Repeat visitors looked up the same block on 2+ different days.</p>
+${table(['Borough', 'Visitors', 'Share', 'Lookups', 'Blocks', 'Repeat visitors'],
+  d.boroughs.map((r) => [r.borough, num(r.visitors), pct(num(r.visitors), num(r.all_visitors)), num(r.lookups), num(r.blocks), num(r.repeat_visitors)]))}
+
+<h2>ZIP codes, last 30 days</h2>
+<p class="muted">Blocks on a ZIP border count toward the side of the street looked up when it's known. "Not recorded" is lookups from before ZIP logging started. ${csvLink}.</p>
+${table(['ZIP', 'Visitors', 'Lookups', 'Blocks', 'Repeat visitors', 'Borough'],
+  d.zips.map((r) => [r.zip ?? 'Not recorded', num(r.visitors), num(r.lookups), num(r.blocks), num(r.repeat_visitors), r.borough]))}
+
 <h2>Top 25 blocks, last 7 days</h2>
+<p class="muted">Every block looked up, with ZIP and 7-day, 30-day and 12-month counts: ${csvLink}.</p>
 ${table(['Block', 'Segment', 'Visitors', 'Lookups'], d.topBlocks.map((r) => [r.label ?? '', r.segment_id, num(r.visitors), num(r.lookups)]))}
 
 <h2>Top referrers, last 7 days</h2>
@@ -182,6 +207,19 @@ export default {
 
     await ensureSchema();
     const sql = db();
+
+    if (url.searchParams.get('export') === 'blocks') {
+      const rows = (await sql.query(BLOCKS_EXPORT, [env])) as Record<string, unknown>[];
+      const day = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+      return new Response(blocksCsv(rows), {
+        headers: {
+          ...noStore,
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="sweeptracker-blocks-${env}-${day}.csv"`,
+        },
+      });
+    }
+
     const keys = Object.keys(STATS_QUERIES) as StatsKey[];
     const results = await Promise.all(keys.map((k) => sql.query(STATS_QUERIES[k], [env])));
     const data = Object.fromEntries(keys.map((k, i) => [k, results[i]])) as StatsRows;

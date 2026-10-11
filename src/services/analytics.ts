@@ -7,7 +7,9 @@
  * Campaign links: ?s=name (or utm_source=name), e.g. sweeptracker.nyc/?s=sticker-flatbush.
  */
 
-export type LookupSource = 'search' | 'gps' | 'map' | 'saved' | 'shared_link';
+import type { CsclSegment } from '../types/cscl';
+
+export type LookupSource ='search' | 'gps' | 'map' | 'saved' | 'shared_link';
 
 export type TrackedEvent =
   | { name: 'alert_toggle'; props: { on: boolean; permission: NotificationPermission | 'unsupported' } }
@@ -106,12 +108,34 @@ export function sideFromHouseNumber(houseNumber?: string | null): 'odd' | 'even'
   return Number(m[1]) % 2 === 1 ? 'odd' : 'even';
 }
 
+type BlockArea = Partial<Pick<CsclSegment, 'boroughcode' | 'l_zip' | 'r_zip' | 'l_low_hn' | 'l_high_hn' | 'r_low_hn' | 'r_high_hn'>>;
+
+const isZip = (zip?: string): zip is string => !!zip && /^\d{5}$/.test(zip);
+
+/** Odd or even side of one curb, from its house range ("0" means no address on that end). */
+function rangeSide(low?: string, high?: string): 'odd' | 'even' | null {
+  for (const hn of [low, high]) if (hn && hn !== '0') return sideFromHouseNumber(hn);
+  return null;
+}
+
+/** ZIP of the side looked up. Blocks on a ZIP border use the matching curb when the side is known, else the left curb. */
+export function zipForSide(block: BlockArea, side: 'odd' | 'even' | null): string | null {
+  const left = isZip(block.l_zip) ? block.l_zip : null;
+  const right = isZip(block.r_zip) ? block.r_zip : null;
+  if (!left || !right || left === right) return left ?? right;
+  if (side && side !== rangeSide(block.l_low_hn, block.l_high_hn) && side === rangeSide(block.r_low_hn, block.r_high_hn)) {
+    return right;
+  }
+  return left;
+}
+
 let lookupsThisLoad = 0;
 
 export function trackLookup(args: {
   segmentId: string;
   label: string;
   source: LookupSource;
+  block?: BlockArea;
   houseNumber?: string | null;
   phase?: 'during' | 'before' | 'none';
   minsToNext?: number | null;
@@ -119,19 +143,22 @@ export function trackLookup(args: {
 }): void {
   const first = lookupsThisLoad++ === 0;
   const msSinceLoad = Math.round(performance.now());
+  const side = sideFromHouseNumber(args.houseNumber);
   void trackVisit().then(() =>
     post({
       t: 'lookup',
       seg: args.segmentId,
       label: args.label,
       src: args.source,
-      side: sideFromHouseNumber(args.houseNumber),
+      side,
       props: {
         phase: args.phase,
         mins_to_next: args.minsToNext ?? undefined,
         swept_today: args.sweptToday,
         ms_since_load: msSinceLoad,
         first,
+        boro: args.block?.boroughcode || undefined,
+        zip: (args.block && zipForSide(args.block, side)) ?? undefined,
       },
     }),
   );
